@@ -6,6 +6,7 @@ const SESSION_TTL = 30 * 60 * 1000; // 30 minutes
 
 export class SessionManager {
   private sessions = new Map<number, Session>();
+  private cleanupInterval: NodeJS.Timeout | null = null;
 
   // 清理過期會話
   cleanup() {
@@ -19,7 +20,15 @@ export class SessionManager {
 
   // 定期清理（每5分鐘）
   startCleanupTimer() {
-    setInterval(() => this.cleanup(), 5 * 60 * 1000);
+    this.cleanupInterval = setInterval(() => this.cleanup(), 5 * 60 * 1000);
+  }
+
+  // 停止清理定時器
+  stopCleanupTimer() {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
   }
 
   getOrCreate(userId: number): Session {

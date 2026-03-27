@@ -16,7 +16,7 @@ import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { config } from './config.js';
 import { logger, setupGlobalErrorHandlers } from '../shared/logger.js';
-import { startMetricsCollection } from '../bridge/metrics.js';
+import { startMetricsCollection, stopMetricsCollection } from '../bridge/metrics.js';
 
 dotenv.config();
 
@@ -159,8 +159,21 @@ logger.info('VSCode2Telegram Bot 啟動中...');
 bot.start();
 logger.info('Bot 運行中...');
 
-process.on('SIGINT', () => {
+// Graceful shutdown
+const shutdown = () => {
   logger.info('關閉中...');
+  
+  // 停止 metrics
+  stopMetricsCollection();
+  
+  // 停止 session cleanup
+  sessionManager.stopCleanupTimer();
+  
+  // 停止 bot
   bot.stop();
+  
   process.exit(0);
-});
+};
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);

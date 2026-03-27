@@ -27,7 +27,15 @@ class Metrics {
   private gauges = new Map<string, Gauge>();
   private histograms = new Map<string, Histogram>();
   private maxHistoryPoints = 1000;
-  private interval: NodeJS.Timeout | null = null;
+  private _interval: NodeJS.Timeout | null = null;
+
+  setInterval(interval: NodeJS.Timeout) {
+    this._interval = interval;
+  }
+
+  get interval(): NodeJS.Timeout | null {
+    return this._interval;
+  }
 
   incrementCounter(name: string, userId?: number) {
     if (!this.counters.has(name)) {
@@ -95,9 +103,9 @@ class Metrics {
   }
 
   stop() {
-    if (this.interval) {
-      clearInterval(this.interval);
-      this.interval = null;
+    if (this._interval) {
+      clearInterval(this._interval);
+      this._interval = null;
     }
   }
 
@@ -116,11 +124,14 @@ export function initDefaultMetrics() {
 
 export function startMetricsCollection(): NodeJS.Timeout {
   initDefaultMetrics();
-  return setInterval(() => {
+  const interval = setInterval(() => {
     metrics.setGauge('uptime', Date.now());
     const mem = process.memoryUsage();
     metrics.setGauge('memory_usage', Math.round(mem.heapUsed / 1024 / 1024));
   }, 5000);
+  // 保存 interval 引用以便停止
+  metrics.setInterval(interval);
+  return interval;
 }
 
 export function stopMetricsCollection() {

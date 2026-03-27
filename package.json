@@ -2,7 +2,7 @@
   "name": "vscode2telegram",
   "version": "2.0.0",
   "description": "Telegram bot to control VSCode and execute commands with results",
-  "main": "src/bot/index.ts",
+  "main": "dist/bot/index.js",
   "type": "module",
   "author": "Liangwei-zhang",
   "license": "MIT",
