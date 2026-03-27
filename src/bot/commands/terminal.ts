@@ -1,8 +1,12 @@
 // bot/commands/terminal.ts - 終端指令
 import { Context } from 'grammy';
 import { v4 as uuidv4 } from 'uuid';
-import { BridgeMessage } from '../../shared/types.js';
+import { BridgeMessage, BridgeResponse, TerminalOutputResponse } from '../../shared/types.js';
 import { BridgeServer } from '../../bridge/ws-server.js';
+
+function isTerminalOutputResponse(res: BridgeResponse): res is TerminalOutputResponse {
+  return res.type === 'terminal_output';
+}
 
 export async function terminalCommand(ctx: Context, command: string, bridgeServer: BridgeServer) {
   if (!bridgeServer.isConnected()) {
@@ -23,12 +27,11 @@ export async function terminalCommand(ctx: Context, command: string, bridgeServe
   try {
     const response = await bridgeServer.sendCommand(msg);
     
-    if (response.status === 'success') {
+    if (response.status === 'success' && isTerminalOutputResponse(response)) {
       const output = response.payload.stdout || '';
       const stderr = response.payload.stderr || '';
       const exitCode = response.payload.exitCode || 0;
       
-      // 使用 pre 標籤避免 Markdown 解析問題
       let result = `<pre>${escapeHtml(output)}</pre>`;
       if (stderr) {
         result += `\n\n--- stderr ---\n<pre>${escapeHtml(stderr)}</pre>`;
@@ -37,7 +40,7 @@ export async function terminalCommand(ctx: Context, command: string, bridgeServe
       
       await ctx.reply(result, { parse_mode: 'HTML' });
     } else {
-      await ctx.reply(`❌ 錯誤: ${response.payload?.error || '未知錯誤'}`);
+      await ctx.reply(`❌ 錯誤: ${(response.payload as any).error || '未知錯誤'}`);
     }
   } catch (e: any) {
     await ctx.reply(`❌ 執行失敗: ${e.message}`);

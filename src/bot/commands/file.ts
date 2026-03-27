@@ -1,8 +1,16 @@
 // bot/commands/file.ts - 文件指令
 import { Context } from 'grammy';
 import { v4 as uuidv4 } from 'uuid';
-import { BridgeMessage } from '../../shared/types.js';
+import { BridgeMessage, BridgeResponse, FileContentResponse, FilesListResponse } from '../../shared/types.js';
 import { BridgeServer } from '../../bridge/ws-server.js';
+
+function isFileContentResponse(res: BridgeResponse): res is FileContentResponse {
+  return res.type === 'file_content';
+}
+
+function isFilesListResponse(res: BridgeResponse): res is FilesListResponse {
+  return res.type === 'files_list';
+}
 
 export async function fileCommand(ctx: Context, path: string, type: 'read' | 'list', bridgeServer: BridgeServer) {
   if (!bridgeServer.isConnected()) {
@@ -23,17 +31,18 @@ export async function fileCommand(ctx: Context, path: string, type: 'read' | 'li
   };
 
   try {
-    // 發送到 Extension
     const response = await bridgeServer.sendCommand(msg);
 
     if (response.status === 'success') {
-      if (type === 'read') {
+      if (type === 'read' && isFileContentResponse(response)) {
         await ctx.reply(`📝 ${path}\n\n${response.payload.content}`);
-      } else {
+      } else if (type === 'list' && isFilesListResponse(response)) {
         await ctx.reply(`📁 ${path}\n\n${response.payload.files?.join('\n') || '空目錄'}`);
+      } else {
+        await ctx.reply('❌ 未知響應類型');
       }
     } else {
-      await ctx.reply(`❌ 錯誤: ${response.payload?.error || '未知錯誤'}`);
+      await ctx.reply(`❌ 錯誤: ${(response.payload as any).error || '未知錯誤'}`);
     }
   } catch (e: any) {
     await ctx.reply(`❌ 錯誤: ${e.message}`);
@@ -60,9 +69,10 @@ export async function runCommand(ctx: Context, filePath: string | undefined, bri
     const response = await bridgeServer.sendCommand(msg);
 
     if (response.status === 'success') {
-      await ctx.reply(`✅ 執行完成\n\n${response.payload.output || '完成'}`);
+      const output = (response.payload as any).output || '完成';
+      await ctx.reply(`✅ 執行完成\n\n${output}`);
     } else {
-      await ctx.reply(`❌ 錯誤: ${response.payload?.error || '未知錯誤'}`);
+      await ctx.reply(`❌ 錯誤: ${(response.payload as any).error || '未知錯誤'}`);
     }
   } catch (e: any) {
     await ctx.reply(`❌ 錯誤: ${e.message}`);

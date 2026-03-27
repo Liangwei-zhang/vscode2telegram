@@ -107,7 +107,7 @@ export async function handleConfirmEdit(
     if (response.status === 'success') {
       await ctx.editMessageText(`✅ 檔案已寫入: ${confirmData.path}`);
     } else {
-      await ctx.editMessageText(`❌ 寫入失敗: ${response.payload?.error}`);
+      await ctx.editMessageText(`❌ 寫入失敗: ${(response.payload as any).error || '未知錯誤'}`);
     }
   } catch (e: any) {
     await ctx.editMessageText(`❌ 錯誤: ${e.message}`);

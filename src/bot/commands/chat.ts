@@ -1,9 +1,13 @@
 // bot/commands/chat.ts - 對話指令
 import { Context } from 'grammy';
 import { v4 as uuidv4 } from 'uuid';
-import { BridgeMessage } from '../../shared/types.js';
+import { BridgeMessage, BridgeResponse, ChatDoneResponse } from '../../shared/types.js';
 import { BridgeServer } from '../../bridge/ws-server.js';
 import { SessionManager } from '../../bridge/session-manager.js';
+
+function isChatDoneResponse(res: BridgeResponse): res is ChatDoneResponse {
+  return res.type === 'chat_done';
+}
 
 export async function chatCommand(
   ctx: Context, 
@@ -30,16 +34,14 @@ export async function chatCommand(
   };
 
   try {
-    // 發送到 Extension 並等待回應
     const response = await bridgeServer.sendCommand(msg);
 
-    if (response.status === 'success') {
-      // 保存歷史
+    if (response.status === 'success' && isChatDoneResponse(response)) {
       sessionManager.appendHistory(userId, 'user', message);
       sessionManager.appendHistory(userId, 'assistant', response.payload.full_text);
       await ctx.reply(response.payload.full_text);
     } else {
-      await ctx.reply(`❌ 錯誤: ${response.payload?.error || '未知錯誤'}`);
+      await ctx.reply(`❌ 錯誤: ${(response.payload as any).error || '未知錯誤'}`);
     }
   } catch (e: any) {
     await ctx.reply(`❌ 錯誤: ${e.message}`);
