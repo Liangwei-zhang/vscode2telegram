@@ -15,13 +15,17 @@ import { cancelCommand } from './commands/cancel.js';
 import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { config } from './config.js';
-import { logger } from '../shared/logger.js';
+import { logger, setupGlobalErrorHandlers } from '../shared/logger.js';
+import { startMetricsCollection } from '../bridge/metrics.js';
 
 dotenv.config();
 
+// 設置全局錯誤處理
+setupGlobalErrorHandlers();
+
 const token = process.env.TELEGRAM_BOT_TOKEN || '';
 if (!token) {
-  console.error('❌ TELEGRAM_BOT_TOKEN is required');
+  logger.error('TELEGRAM_BOT_TOKEN is required');
   process.exit(1);
 }
 
@@ -38,6 +42,9 @@ logger.configure({
   level: config.getLogging().level,
   console: true
 });
+
+// 啟動指標準集
+startMetricsCollection();
 
 // 中間件
 bot.use(authMiddleware);
@@ -126,13 +133,18 @@ bot.command('edit', async (ctx) => {
   await editCommand(ctx, args, bridgeServer, sessionManager);
 });
 
-// 處理 inline keyboard 回調
-bot.callbackQuery('confirm_edit', async (ctx) => {
-  await handleConfirmEdit(ctx, sessionManager);
+bot.callbackQuery(/^confirm_edit:(.+)$/, async (ctx) => {
+  const match = ctx.match?.[1];
+  if (match) {
+    await handleConfirmEdit(ctx, match, bridgeServer);
+  }
 });
 
-bot.callbackQuery('cancel_edit', async (ctx) => {
-  await handleCancelEdit(ctx);
+bot.callbackQuery(/^cancel_edit:(.+)$/, async (ctx) => {
+  const match = ctx.match?.[1];
+  if (match) {
+    await handleCancelEdit(ctx, match);
+  }
 });
 
 bot.on('message:text', async (ctx) => {
@@ -143,12 +155,12 @@ bot.on('message:text', async (ctx) => {
   }
 });
 
-console.log('🤖 VSCode2Telegram Bot 啟動中...');
+logger.info('VSCode2Telegram Bot 啟動中...');
 bot.start();
-console.log('🤖 Bot 運行中...');
+logger.info('Bot 運行中...');
 
 process.on('SIGINT', () => {
-  console.log('👋 關閉中...');
+  logger.info('關閉中...');
   bot.stop();
   process.exit(0);
 });

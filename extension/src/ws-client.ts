@@ -1,6 +1,6 @@
 // extension/ws-client.ts - WebSocket 客户端
 import WebSocket from 'ws';
-import { BridgeMessage, BridgeResponse } from '../shared/types.js';
+import { BridgeMessage, BridgeResponse } from './shared-types.js';
 
 export class ExtensionWSClient {
   private ws: WebSocket | null = null;

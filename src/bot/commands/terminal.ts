@@ -1,9 +1,10 @@
 // bot/commands/terminal.ts - 終端指令
 import { Context } from 'grammy';
 import { v4 as uuidv4 } from 'uuid';
-import { BridgeMessage, BridgeResponse } from '../../shared/types.js';
+import { BridgeMessage } from '../../shared/types.js';
+import { BridgeServer } from '../../bridge/ws-server.js';
 
-export async function terminalCommand(ctx: Context, command: string, bridgeServer: any) {
+export async function terminalCommand(ctx: Context, command: string, bridgeServer: BridgeServer) {
   if (!bridgeServer.isConnected()) {
     await ctx.reply('❌ VSCode Extension 未連接，請先安裝並啟動 Extension');
     return;
@@ -27,16 +28,27 @@ export async function terminalCommand(ctx: Context, command: string, bridgeServe
       const stderr = response.payload.stderr || '';
       const exitCode = response.payload.exitCode || 0;
       
-      let result = `\`\`\`\n`;
-      if (output) result += output;
-      if (stderr) result += '\n--- stderr ---\n' + stderr;
-      result += `\`\`\`\n\nExit Code: ${exitCode}`;
+      // 使用 pre 標籤避免 Markdown 解析問題
+      let result = `<pre>${escapeHtml(output)}</pre>`;
+      if (stderr) {
+        result += `\n\n--- stderr ---\n<pre>${escapeHtml(stderr)}</pre>`;
+      }
+      result += `\n\nExit Code: ${exitCode}`;
       
-      await ctx.reply(result, { parse_mode: 'MarkdownV2' });
+      await ctx.reply(result, { parse_mode: 'HTML' });
     } else {
-      await ctx.reply(`❌ 錯誤: ${response.error}`);
+      await ctx.reply(`❌ 錯誤: ${response.payload?.error || '未知錯誤'}`);
     }
   } catch (e: any) {
     await ctx.reply(`❌ 執行失敗: ${e.message}`);
   }
+}
+
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }

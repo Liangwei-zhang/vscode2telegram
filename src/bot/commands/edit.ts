@@ -67,20 +67,17 @@ export async function editCommand(
 
   await ctx.reply(
     `⚠️ 確認寫入檔案？\n\n` +
-    `📁 路徑: \`${filePath}\`\n` +
+    `📁 路徑: ${filePath}\n` +
     `📝內容預覽:\n\`\`\`\n${content.slice(0, 200)}${content.length > 200 ? '...' : ''}\n\`\`\``,
     { reply_markup: keyboard, parse_mode: 'MarkdownV2' }
   );
 }
 
-export async function handleConfirmEdit(ctx: Context, sessionManager: SessionManager): Promise<void> {
-  const query = ctx.callbackQuery;
-  if (!query || !('data' in query)) return;
-  
-  const data = query.data;
-  if (!data?.startsWith('confirm_edit:')) return;
-  
-  const requestId = data.replace('confirm_edit:', '');
+export async function handleConfirmEdit(
+  ctx: Context,
+  requestId: string,
+  bridgeServer: BridgeServer
+): Promise<void> {
   const confirmData = pendingConfirms.get(requestId);
   
   if (!confirmData) {
@@ -96,18 +93,28 @@ export async function handleConfirmEdit(ctx: Context, sessionManager: SessionMan
   pendingConfirms.delete(requestId);
   await ctx.answerCallbackQuery('✅ 執行中...');
 
-  // 需要 bridgeServer，這裡簡化處理
-  await ctx.editMessageText(`✅ 檔案已寫入: ${confirmData.path}`);
+  const msg: BridgeMessage = {
+    id: uuidv4(),
+    type: 'file_write',
+    payload: { path: confirmData.path, content: confirmData.content },
+    userId: confirmData.userId,
+    timestamp: new Date().toISOString()
+  };
+
+  try {
+    const response = await bridgeServer.sendCommand(msg);
+    
+    if (response.status === 'success') {
+      await ctx.editMessageText(`✅ 檔案已寫入: ${confirmData.path}`);
+    } else {
+      await ctx.editMessageText(`❌ 寫入失敗: ${response.payload?.error}`);
+    }
+  } catch (e: any) {
+    await ctx.editMessageText(`❌ 錯誤: ${e.message}`);
+  }
 }
 
-export async function handleCancelEdit(ctx: Context): Promise<void> {
-  const query = ctx.callbackQuery;
-  if (!query || !('data' in query)) return;
-  
-  const data = query.data;
-  if (!data?.startsWith('cancel_edit:')) return;
-  
-  const requestId = data.replace('cancel_edit:', '');
+export async function handleCancelEdit(ctx: Context, requestId: string): Promise<void> {
   const confirmData = pendingConfirms.get(requestId);
   
   if (!confirmData) {

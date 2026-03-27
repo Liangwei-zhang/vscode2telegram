@@ -35,5 +35,5 @@ const HELP_TEXT = `🤖 VSCode2Telegram 指令列表
 - 頻率限制`;
 
 export async function helpCommand(ctx: Context) {
-  await ctx.reply(HELP_TEXT, { parse_mode: 'HTML' });
+  await ctx.reply(HELP_TEXT);
 }

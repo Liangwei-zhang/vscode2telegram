@@ -105,3 +105,14 @@ class Logger {
 }
 
 export const logger = new Logger();
+
+export function setupGlobalErrorHandlers() {
+  process.on('uncaughtException', (err) => {
+    logger.error('Uncaught Exception', { error: err.message, stack: err.stack });
+    process.exit(1);
+  });
+  
+  process.on('unhandledRejection', (reason) => {
+    logger.error('Unhandled Rejection', { reason: String(reason) });
+  });
+}
