@@ -16,10 +16,10 @@
 - [x] /terminal 命令
 - [x] 命令輸出返回
 
-### Phase 3: Agent Chat 集成 ⏳
-- [ ] lm-handler.ts (vscode.lm API)
-- [ ] 流式響應
-- [ ] /chat 命令優化
+### Phase 3: Agent Chat 集成 ✅
+- [x] lm-handler.ts (vscode.lm API)
+- [x] 流式響應
+- [x] /chat 命令優化
 
 ### Phase 4: 文件操作 ✅
 - [x] file-manager.ts
@@ -33,13 +33,17 @@
 - [ ] Extension 打包 .vsix
 
 ## QA 測試 ✅
-- [x] 單元測試 (16 tests)
-- [x] 商業級別 QA (51 tests)
+- [x] 單元測試 (74 tests)
+- [x] 商業級別 QA
 - [x] 集成測試
 - [x] 性能測試
 
 ## 待完成
-1. Phase 3: vscode.lm API 集成
-2. Extension 打包發布
+1. ✅ Phase 3: vscode.lm API 集成 (已完成)
+2. Extension 打包發布 (.vsix)
 3. Rate-limit 中間件
-4. 流式響應優化
+4. 流式響應優化 (Telegram 即時更新)
+
+## 已完成
+- 74 個測試全部通過
+- GitHub: https://github.com/Liangwei-zhang/vscode2telegram
