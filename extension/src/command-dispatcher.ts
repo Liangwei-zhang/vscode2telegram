@@ -1,6 +1,6 @@
 // extension/command-dispatcher.ts - 指令路由分發
 import * as vscode from 'vscode';
-import { BridgeMessage, BridgeResponse, ChatMessage } from '../shared/types.js';
+import { BridgeMessage, BridgeResponse, ChatMessage } from './shared-types.js';
 import { TerminalRunner } from './terminal-runner.js';
 import { FileManager } from './file-manager.js';
 import { LMHandler } from './lm-handler.js';

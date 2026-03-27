@@ -1,6 +1,6 @@
 // extension/lm-handler.ts - VSCode Language Model API 集成
 import * as vscode from 'vscode';
-import type { ChatMessage } from '../src/shared/types.js';
+import type { ChatMessage } from './shared-types.js';
 
 export class LMHandler {
   private model: vscode.LanguageModelChat | null = null;

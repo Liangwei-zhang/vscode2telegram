@@ -27,8 +27,8 @@ export class BridgeServer {
 
     ws.on('message', async (data) => {
       try {
-        const msg: BridgeMessage = JSON.parse(data.toString());
-        await this.handleMessage(msg, ws);
+        const raw = JSON.parse(data.toString());
+        await this.handleMessage(raw, ws);
       } catch (e) {
         console.error('❌ 消息解析錯誤:', e);
       }
@@ -37,6 +37,12 @@ export class BridgeServer {
     ws.on('close', () => {
       console.log('❌ VSCode Extension 斷開連接');
       this.extensionSocket = null;
+      // 拒絕所有 pending requests
+      for (const [id, pending] of this.pendingRequests) {
+        clearTimeout(pending.timeout);
+        pending.reject(new Error('連接斷開'));
+      }
+      this.pendingRequests.clear();
     });
 
     ws.on('error', (err) => {
@@ -44,9 +50,21 @@ export class BridgeServer {
     });
   }
 
-  private async handleMessage(msg: BridgeMessage, ws: WebSocket) {
-    // 響應 ping
-    if (msg.type === 'ping') {
+  private async handleMessage(msg: BridgeMessage | BridgeResponse, ws: WebSocket) {
+    // 檢查是否為 pending request 的回應
+    const pending = this.pendingRequests.get(msg.id);
+    if (pending) {
+      clearTimeout(pending.timeout);
+      this.pendingRequests.delete(msg.id);
+      // 如果是 BridgeResponse 格式，直接 resolve
+      if ('status' in msg) {
+        pending.resolve(msg as BridgeResponse);
+        return;
+      }
+    }
+
+    // 處理其他消息，通過 handler
+    if ('type' in msg && msg.type === 'ping') {
       this.sendToExtension({
         id: msg.id,
         type: 'pong',
@@ -57,9 +75,8 @@ export class BridgeServer {
       return;
     }
 
-    // 處理其他消息，通過 handler
     if (this.messageHandler) {
-      const response = await this.messageHandler(msg);
+      const response = await this.messageHandler(msg as BridgeMessage);
       this.sendToExtension(response);
     }
   }
