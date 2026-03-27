@@ -1,6 +1,5 @@
 // bridge/ws-server.ts - WebSocket 服務器
 import { WebSocketServer, WebSocket } from 'ws';
-import { v4 as uuidv4 } from 'uuid';
 import { BridgeMessage, BridgeResponse } from '../shared/types.js';
 
 interface PendingRequest {

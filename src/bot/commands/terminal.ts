@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { BridgeMessage, BridgeResponse, TerminalOutputResponse } from '../../shared/types.js';
 import { BridgeServer } from '../../bridge/ws-server.js';
 import { isCommandSafe } from '../middleware/auth.js';
+import { cancelHandler } from './cancel.js';
 
 function isTerminalOutputResponse(res: BridgeResponse): res is TerminalOutputResponse {
   return res.type === 'terminal_output';
@@ -31,6 +32,11 @@ export async function terminalCommand(ctx: Context, command: string, bridgeServe
     timestamp: new Date().toISOString()
   };
 
+  // 標記進行中的請求
+  const userId = ctx.from?.id || 0;
+  const requestId = msg.id;
+  cancelHandler.startRequest(userId, requestId);
+
   try {
     const response = await bridgeServer.sendCommand(msg);
     
@@ -51,6 +57,8 @@ export async function terminalCommand(ctx: Context, command: string, bridgeServe
     }
   } catch (e: any) {
     await ctx.reply(`❌ 執行失敗: ${e.message}`);
+  } finally {
+    cancelHandler.endRequest(userId);
   }
 }
 

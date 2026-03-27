@@ -67,8 +67,8 @@ export async function editCommand(
 
   await ctx.reply(
     `⚠️ 確認寫入檔案？\n\n` +
-    `📁 路徑: ${filePath}\n` +
-    `📝內容預覽:\n\`\`\`\n${content.slice(0, 200)}${content.length > 200 ? '...' : ''}\n\`\`\``,
+    `📁 路徑: ${escapeMarkdown(filePath)}\n` +
+    `📝內容預覽:\n\`\`\`\n${escapeMarkdown(content.slice(0, 200))}${content.length > 200 ? '...' : ''}\n\`\`\``,
     { reply_markup: keyboard, parse_mode: 'MarkdownV2' }
   );
 }
@@ -130,4 +130,26 @@ export async function handleCancelEdit(ctx: Context, requestId: string): Promise
   pendingConfirms.delete(requestId);
   await ctx.answerCallbackQuery('❌ 已取消');
   await ctx.editMessageText('❌ 已取消寫入操作');
+}
+
+// MarkdownV2 轉義
+function escapeMarkdown(text: string): string {
+  return text
+    .replace(/\\/g, '\\\\')
+    .replace(/`/g, '\\`')
+    .replace(/\*/g, '\\*')
+    .replace(/_/g, '\\_')
+    .replace(/\[/g, '\\[')
+    .replace(/\]/g, '\\]')
+    .replace(/\(/g, '\\(')
+    .replace(/\)/g, '\\)')
+    .replace(/~/g, '\\~')
+    .replace(/>/g, '\\>')
+    .replace(/#/g, '\\#')
+    .replace(/\+/g, '\\+')
+    .replace(/=/g, '\\=')
+    .replace(/\|/g, '\\|')
+    .replace(/\{/g, '\\{')
+    .replace(/\}/g, '\\}')
+    .replace(/\./g, '\\.');
 }

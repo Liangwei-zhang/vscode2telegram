@@ -1,6 +1,4 @@
 // bridge/metrics.ts - 指標準集
-import * as fs from 'fs';
-import * as path from 'path';
 
 interface MetricPoint {
   value: number;

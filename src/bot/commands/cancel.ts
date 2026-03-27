@@ -20,6 +20,8 @@ export class CancelHandler {
 
 const cancelHandler = new CancelHandler();
 
+export { cancelHandler };
+
 export async function cancelCommand(ctx: Context, sessionManager: SessionManager): Promise<void> {
   const userId = ctx.from?.id;
   

@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { BridgeMessage, BridgeResponse, ChatDoneResponse } from '../../shared/types.js';
 import { BridgeServer } from '../../bridge/ws-server.js';
 import { SessionManager } from '../../bridge/session-manager.js';
+import { cancelHandler } from './cancel.js';
 
 function isChatDoneResponse(res: BridgeResponse): res is ChatDoneResponse {
   return res.type === 'chat_done';
@@ -33,6 +34,10 @@ export async function chatCommand(
     timestamp: new Date().toISOString()
   };
 
+  // 標記進行中的請求
+  const requestId = msg.id;
+  cancelHandler.startRequest(userId, requestId);
+
   try {
     const response = await bridgeServer.sendCommand(msg);
 
@@ -45,5 +50,7 @@ export async function chatCommand(
     }
   } catch (e: any) {
     await ctx.reply(`❌ 錯誤: ${e.message}`);
+  } finally {
+    cancelHandler.endRequest(userId);
   }
 }
