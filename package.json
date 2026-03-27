@@ -1,16 +1,35 @@
 {
   "name": "vscode2telegram",
-  "version": "1.0.0",
-  "description": "Telegram bot to control VSCode and get results back",
+  "version": "2.0.0",
+  "description": "Telegram bot to control VSCode and execute commands with results",
   "main": "src/bot/index.ts",
   "type": "module",
+  "author": "Liangwei-zhang",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Liangwei-zhang/vscode2telegram.git"
+  },
+  "keywords": [
+    "vscode",
+    "telegram",
+    "bot",
+    "extension",
+    "websocket"
+  ],
+  "homepage": "https://github.com/Liangwei-zhang/vscode2telegram",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "npx tsx src/bot/index.ts",
     "build": "tsc",
     "start": "node dist/bot/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\""
   },
   "dependencies": {
     "dotenv": "^16.3.1",
