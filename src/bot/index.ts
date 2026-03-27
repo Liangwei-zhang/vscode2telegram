@@ -12,13 +12,7 @@ import { authMiddleware } from './middleware/auth.js';
 dotenv.config();
 
 const token = process.env.TELEGRAM_BOT_TOKEN || '';
-const bot = new Bot(token, {
-  // 使用 long polling 避免衝突
-  polling: {
-    timeout: 0,
-    limit: undefined
-  }
-});
+const bot = new Bot(token);
 
 // 初始化 Bridge Server 和 Session Manager
 const bridgeServer = new BridgeServer(3456);

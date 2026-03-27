@@ -23,7 +23,10 @@ export function truncateCode(
   code: string,
   options: TruncateOptions = DEFAULT_OPTIONS
 ): { content: string; truncated: boolean; originalLines: number } {
-  const { maxLines, maxChars, showLineNumbers } = { ...DEFAULT_OPTIONS, ...options };
+  const opts = { ...DEFAULT_OPTIONS, ...options };
+  const maxLines = opts.maxLines ?? 100;
+  const maxChars = opts.maxChars ?? 3000;
+  const showLineNumbers = opts.showLineNumbers ?? false;
   
   const lines = code.split('\n');
   const originalLines = lines.length;

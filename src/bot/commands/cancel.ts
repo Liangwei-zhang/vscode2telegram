@@ -1,6 +1,6 @@
 // bot/commands/cancel.ts - 取消請求指令
 import { Context } from 'grammy';
-import { SessionManager } from '../bridge/session-manager.js';
+import { SessionManager } from '../../bridge/session-manager.js';
 
 export class CancelHandler {
   private sessionManager: SessionManager;
