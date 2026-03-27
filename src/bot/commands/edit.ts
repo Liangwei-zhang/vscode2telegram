@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { BridgeMessage } from '../../shared/types.js';
 import { BridgeServer } from '../../bridge/ws-server.js';
 import { SessionManager } from '../../bridge/session-manager.js';
+import { toTelegramMarkdown } from '../formatters/markdown.js';
 
 interface PendingConfirm {
   requestId: string;
@@ -67,8 +68,8 @@ export async function editCommand(
 
   await ctx.reply(
     `⚠️ 確認寫入檔案？\n\n` +
-    `📁 路徑: ${escapeMarkdown(filePath)}\n` +
-    `📝內容預覽:\n\`\`\`\n${escapeMarkdown(content.slice(0, 200))}${content.length > 200 ? '...' : ''}\n\`\`\``,
+    `📁 路徑: ${toTelegramMarkdown(filePath)}\n` +
+    `📝內容預覽:\n\`\`\`\n${toTelegramMarkdown(content.slice(0, 200))}${content.length > 200 ? '...' : ''}\n\`\`\``,
     { reply_markup: keyboard, parse_mode: 'MarkdownV2' }
   );
 }
@@ -130,26 +131,4 @@ export async function handleCancelEdit(ctx: Context, requestId: string): Promise
   pendingConfirms.delete(requestId);
   await ctx.answerCallbackQuery('❌ 已取消');
   await ctx.editMessageText('❌ 已取消寫入操作');
-}
-
-// MarkdownV2 轉義
-function escapeMarkdown(text: string): string {
-  return text
-    .replace(/\\/g, '\\\\')
-    .replace(/`/g, '\\`')
-    .replace(/\*/g, '\\*')
-    .replace(/_/g, '\\_')
-    .replace(/\[/g, '\\[')
-    .replace(/\]/g, '\\]')
-    .replace(/\(/g, '\\(')
-    .replace(/\)/g, '\\)')
-    .replace(/~/g, '\\~')
-    .replace(/>/g, '\\>')
-    .replace(/#/g, '\\#')
-    .replace(/\+/g, '\\+')
-    .replace(/=/g, '\\=')
-    .replace(/\|/g, '\\|')
-    .replace(/\{/g, '\\{')
-    .replace(/\}/g, '\\}')
-    .replace(/\./g, '\\.');
 }
