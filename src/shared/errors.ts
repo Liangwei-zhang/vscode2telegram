@@ -56,30 +56,6 @@ export class ValidationError extends VSCode2TelegramError {
   }
 }
 
-// 錯誤處理裝飾器
-export function errorHandler(target: any, propertyKey: string, descriptor: PropertyDescriptor) {
-  const originalMethod = descriptor.value;
-
-  descriptor.value = async function (...args: any[]) {
-    try {
-      return await originalMethod.apply(this, args);
-    } catch (e: any) {
-      if (e instanceof VSCode2TelegramError) {
-        throw e;
-      }
-      throw new VSCode2TelegramError(
-        e.message || '未知錯誤',
-        'INTERNAL_ERROR',
-        500,
-        { originalError: e.message }
-      );
-    }
-  };
-
-  return descriptor;
-}
-
-import { logger } from './logger.js';
-
-// 重新導出 logger 的版本
-export { setupGlobalErrorHandlers } from './logger.js';
+// Re-export from logger
+import { setupGlobalErrorHandlers } from './logger.js';
+export { setupGlobalErrorHandlers };

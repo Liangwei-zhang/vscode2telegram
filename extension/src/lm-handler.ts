@@ -33,7 +33,7 @@ export class LMHandler {
 
     // 優先選擇 Copilot GPT-4o
     const preferred = models.find(m => 
-      m.modelFamily?.toLowerCase().includes('gpt-4o') ||
+      m.modelFamily?.toLowerCase().includes(this.selectedModelFamily.toLowerCase()) ||
       m.modelFamily?.toLowerCase().includes('copilot')
     );
 
@@ -62,8 +62,8 @@ export class LMHandler {
 
     // 構建消息列表
     const messages: vscode.LanguageModelChatMessage[] = [
-      // 系統提示
-      vscode.LanguageModelChatMessage.Assistant(
+      // 系統提示（使用 User 角色）
+      vscode.LanguageModelChatMessage.User(
         '你是一個 VSCode 中的編程助手，用戶通過 Telegram 遠程與你交互。' +
         '請直接給出代碼和簡潔的解釋，避免過多廢話。' +
         '如果需要多個文件，請標註文件名。'
