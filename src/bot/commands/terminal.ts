@@ -3,12 +3,19 @@ import { Context } from 'grammy';
 import { v4 as uuidv4 } from 'uuid';
 import { BridgeMessage, BridgeResponse, TerminalOutputResponse } from '../../shared/types.js';
 import { BridgeServer } from '../../bridge/ws-server.js';
+import { isCommandSafe } from '../middleware/auth.js';
 
 function isTerminalOutputResponse(res: BridgeResponse): res is TerminalOutputResponse {
   return res.type === 'terminal_output';
 }
 
 export async function terminalCommand(ctx: Context, command: string, bridgeServer: BridgeServer) {
+  // 安全檢查
+  if (!isCommandSafe(command)) {
+    await ctx.reply('❌ 此命令被禁止執行');
+    return;
+  }
+
   if (!bridgeServer.isConnected()) {
     await ctx.reply('❌ VSCode Extension 未連接，請先安裝並啟動 Extension');
     return;

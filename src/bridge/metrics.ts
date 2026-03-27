@@ -67,8 +67,8 @@ class Metrics {
     hist.count++;
     hist.sum += value;
     if (hist.values.length > this.maxHistoryPoints) {
-      hist.values.shift();
-      hist.sum -= hist.values[0] || 0;
+      const removed = hist.values.shift();
+      hist.sum -= removed || 0;
     }
   }
 

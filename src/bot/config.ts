@@ -1,6 +1,5 @@
 // bot/config.ts - 配置管理優化
 import * as fs from 'fs';
-import * as path from 'path';
 
 interface Config {
   telegram: {
@@ -58,6 +57,27 @@ const DEFAULT_CONFIG: Config = {
   }
 };
 
+// 深度合併工具函數
+function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
+  const result = { ...target } as any;
+  
+  for (const key in source) {
+    if (source[key] !== undefined) {
+      if (
+        typeof source[key] === 'object' &&
+        source[key] !== null &&
+        !Array.isArray(source[key])
+      ) {
+        result[key] = deepMerge(result[key] || {}, source[key] as any);
+      } else {
+        result[key] = source[key];
+      }
+    }
+  }
+  
+  return result as T;
+}
+
 class ConfigManager {
   private config: Config;
   private configPath: string;
@@ -71,7 +91,7 @@ class ConfigManager {
     try {
       if (fs.existsSync(this.configPath)) {
         const fileConfig = JSON.parse(fs.readFileSync(this.configPath, 'utf-8'));
-        return { ...DEFAULT_CONFIG, ...fileConfig };
+        return deepMerge(DEFAULT_CONFIG, fileConfig);
       }
     } catch (e) {
       console.warn('⚠️ 配置文件載入失敗，使用預設值');

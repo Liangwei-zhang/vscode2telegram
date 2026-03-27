@@ -79,14 +79,7 @@ export function errorHandler(target: any, propertyKey: string, descriptor: Prope
   return descriptor;
 }
 
-// 全局錯誤監聽
-export function setupGlobalErrorHandlers() {
-  process.on('uncaughtException', (err) => {
-    console.error('❌ 未捕獲的異常:', err);
-    process.exit(1);
-  });
+import { logger } from './logger.js';
 
-  process.on('unhandledRejection', (reason) => {
-    console.error('❌ 未處理的 Promise 拒絕:', reason);
-  });
-}
+// 重新導出 logger 的版本
+export { setupGlobalErrorHandlers } from './logger.js';
