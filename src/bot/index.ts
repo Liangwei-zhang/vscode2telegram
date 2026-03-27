@@ -3,11 +3,19 @@ import { Bot, Context } from 'grammy';
 import dotenv from 'dotenv';
 import { BridgeServer } from '../bridge/ws-server.js';
 import { SessionManager } from '../bridge/session-manager.js';
+import { HealthCheck } from '../bridge/health-check.js';
 import { statusCommand } from './commands/status.js';
 import { terminalCommand } from './commands/terminal.js';
 import { chatCommand } from './commands/chat.js';
 import { fileCommand, runCommand } from './commands/file.js';
+import { editCommand, handleConfirmEdit, handleCancelEdit } from './commands/edit.js';
+import { statsCommand, topUsersCommand } from './commands/stats.js';
+import { helpCommand } from './commands/help.js';
+import { cancelCommand } from './commands/cancel.js';
 import { authMiddleware } from './middleware/auth.js';
+import { rateLimitMiddleware } from './middleware/rate-limit.js';
+import { config } from './config.js';
+import { logger } from '../shared/logger.js';
 
 dotenv.config();
 
@@ -20,11 +28,20 @@ if (!token) {
 const bot = new Bot(token);
 
 // 初始化 Bridge Server 和 Session Manager
-const bridgeServer = new BridgeServer(3456);
+const bridgeServer = new BridgeServer(config.getBridge().port);
 const sessionManager = new SessionManager();
+sessionManager.startCleanupTimer(); // 啟動會話清理定時器
+const healthCheck = new HealthCheck(bridgeServer, sessionManager);
+
+// 配置日誌
+logger.configure({
+  level: config.getLogging().level,
+  console: true
+});
 
 // 中間件
 bot.use(authMiddleware);
+bot.use(rateLimitMiddleware());
 
 // 指令處理
 bot.command('start', async (ctx) => {
@@ -43,6 +60,22 @@ bot.command('start', async (ctx) => {
 
 bot.command('status', async (ctx) => {
   await statusCommand(ctx, bridgeServer);
+});
+
+bot.command('stats', async (ctx) => {
+  await statsCommand(ctx, healthCheck);
+});
+
+bot.command('top', async (ctx) => {
+  await topUsersCommand(ctx, sessionManager);
+});
+
+bot.command('help', async (ctx) => {
+  await helpCommand(ctx);
+});
+
+bot.command('cancel', async (ctx) => {
+  await cancelCommand(ctx, sessionManager);
 });
 
 bot.command('clear', async (ctx) => {
