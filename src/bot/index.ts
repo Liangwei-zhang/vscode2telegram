@@ -121,6 +121,20 @@ bot.command('run', async (ctx) => {
   await runCommand(ctx, filePath, bridgeServer);
 });
 
+bot.command('edit', async (ctx) => {
+  const args = ctx.message?.text.split(' ').slice(1).join(' ') || '';
+  await editCommand(ctx, args, bridgeServer, sessionManager);
+});
+
+// 處理 inline keyboard 回調
+bot.callbackQuery('confirm_edit', async (ctx) => {
+  await handleConfirmEdit(ctx, sessionManager);
+});
+
+bot.callbackQuery('cancel_edit', async (ctx) => {
+  await handleCancelEdit(ctx);
+});
+
 bot.on('message:text', async (ctx) => {
   if (ctx.message?.text.startsWith('/')) return;
   const message = ctx.message?.text;

@@ -1,9 +1,10 @@
 // bot/commands/file.ts - 文件指令
 import { Context } from 'grammy';
 import { v4 as uuidv4 } from 'uuid';
-import { BridgeMessage, BridgeResponse } from '../../shared/types.js';
+import { BridgeMessage } from '../../shared/types.js';
+import { BridgeServer } from '../../bridge/ws-server.js';
 
-export async function fileCommand(ctx: Context, path: string, type: 'read' | 'list', bridgeServer: any) {
+export async function fileCommand(ctx: Context, path: string, type: 'read' | 'list', bridgeServer: BridgeServer) {
   if (!bridgeServer.isConnected()) {
     await ctx.reply('❌ VSCode Extension 未連接');
     return;
@@ -22,20 +23,24 @@ export async function fileCommand(ctx: Context, path: string, type: 'read' | 'li
   };
 
   try {
-    // 模擬回覆
-    await new Promise(r => setTimeout(r, 500));
-    
-    if (type === 'read') {
-      await ctx.reply(`📝 文件: ${path}\n\n\`\`\`\n// 請在 VSCode 中安裝 Extension 以讀取實際文件內容\`\`\``);
+    // 發送到 Extension
+    const response = await bridgeServer.sendCommand(msg);
+
+    if (response.status === 'success') {
+      if (type === 'read') {
+        await ctx.reply(`📝 ${path}\n\n${response.payload.content}`);
+      } else {
+        await ctx.reply(`📁 ${path}\n\n${response.payload.files?.join('\n') || '空目錄'}`);
+      }
     } else {
-      await ctx.reply(`📁 目錄: ${path}\n\n\`\`\`\nsrc/\npackage.json\nREADME.md\n\`\`\``);
+      await ctx.reply(`❌ 錯誤: ${response.payload?.error || '未知錯誤'}`);
     }
   } catch (e: any) {
     await ctx.reply(`❌ 錯誤: ${e.message}`);
   }
 }
 
-export async function runCommand(ctx: Context, filePath: string | undefined, bridgeServer: any) {
+export async function runCommand(ctx: Context, filePath: string | undefined, bridgeServer: BridgeServer) {
   if (!bridgeServer.isConnected()) {
     await ctx.reply('❌ VSCode Extension 未連接');
     return;
@@ -52,8 +57,13 @@ export async function runCommand(ctx: Context, filePath: string | undefined, bri
   };
 
   try {
-    await new Promise(r => setTimeout(r, 1000));
-    await ctx.reply('✅ 執行完成\n\n`// 請在 VSCode 中安裝 Extension 以執行實際代碼`');
+    const response = await bridgeServer.sendCommand(msg);
+
+    if (response.status === 'success') {
+      await ctx.reply(`✅ 執行完成\n\n${response.payload.output || '完成'}`);
+    } else {
+      await ctx.reply(`❌ 錯誤: ${response.payload?.error || '未知錯誤'}`);
+    }
   } catch (e: any) {
     await ctx.reply(`❌ 錯誤: ${e.message}`);
   }

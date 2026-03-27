@@ -1,13 +1,15 @@
 // bot/commands/chat.ts - 對話指令
 import { Context } from 'grammy';
 import { v4 as uuidv4 } from 'uuid';
-import { BridgeMessage, BridgeResponse } from '../../shared/types.js';
+import { BridgeMessage } from '../../shared/types.js';
+import { BridgeServer } from '../../bridge/ws-server.js';
+import { SessionManager } from '../../bridge/session-manager.js';
 
 export async function chatCommand(
   ctx: Context, 
   message: string, 
-  bridgeServer: any,
-  sessionManager: any
+  bridgeServer: BridgeServer,
+  sessionManager: SessionManager
 ) {
   if (!bridgeServer.isConnected()) {
     await ctx.reply('❌ VSCode Extension 未連接');
@@ -28,24 +30,17 @@ export async function chatCommand(
   };
 
   try {
-    // 模擬回覆（實際需要 extension 返回）
-    await new Promise(r => setTimeout(r, 1000));
-    
-    const response: BridgeResponse = {
-      id: msg.id,
-      type: 'chat_done',
-      payload: { 
-        full_text: `我收到了你的消息: "${message}"\n\n這是模擬回覆。請在 VSCode 中安裝 Extension 後即可使用完整功能。` 
-      },
-      status: 'success',
-      timestamp: new Date().toISOString()
-    };
+    // 發送到 Extension 並等待回應
+    const response = await bridgeServer.sendCommand(msg);
 
-    // 保存歷史
-    sessionManager.appendHistory(userId, 'user', message);
-    sessionManager.appendHistory(userId, 'assistant', response.payload.full_text);
-
-    await ctx.reply(response.payload.full_text);
+    if (response.status === 'success') {
+      // 保存歷史
+      sessionManager.appendHistory(userId, 'user', message);
+      sessionManager.appendHistory(userId, 'assistant', response.payload.full_text);
+      await ctx.reply(response.payload.full_text);
+    } else {
+      await ctx.reply(`❌ 錯誤: ${response.payload?.error || '未知錯誤'}`);
+    }
   } catch (e: any) {
     await ctx.reply(`❌ 錯誤: ${e.message}`);
   }
