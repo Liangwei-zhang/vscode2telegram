@@ -7,16 +7,25 @@ export class ExtensionWSClient {
   private reconnectTimer: NodeJS.Timeout | null = null;
   private messageHandler: ((msg: BridgeMessage) => Promise<BridgeResponse>) | null = null;
   private bridgeUrl: string = 'ws://127.0.0.1:3456';
+  private wsSecret: string = '';
 
-  constructor(bridgeUrl?: string) {
+  constructor(bridgeUrl?: string, wsSecret?: string) {
     if (bridgeUrl) {
       this.bridgeUrl = bridgeUrl;
+    }
+    if (wsSecret) {
+      this.wsSecret = wsSecret;
     }
   }
 
   public connect() {
+    // 添加 token 認證參數
+    const url = this.wsSecret 
+      ? `${this.bridgeUrl}?token=${encodeURIComponent(this.wsSecret)}`
+      : this.bridgeUrl;
+    
     console.log('🔌 連接到 Bridge Server...');
-    this.ws = new WebSocket(this.bridgeUrl);
+    this.ws = new WebSocket(url);
 
     this.ws.on('open', () => {
       console.log('✅ 已連接到 Bridge Server');
@@ -38,12 +47,50 @@ export class ExtensionWSClient {
     });
 
     this.ws.on('close', () => {
-      console.log('❌ 連接斷開，5秒後重連...');
+      console.log('❌ 與 Bridge Server 斷開連接');
+      this.extensionSocket = null;
       this.scheduleReconnect();
     });
 
     this.ws.on('error', (err) => {
       console.error('❌ WebSocket 錯誤:', err.message);
+    });
+
+    this.extensionSocket = this.ws;
+  }
+
+  private extensionSocket: WebSocket | null = null;
+
+  public isConnected(): boolean {
+    return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
+  }
+
+  public setMessageHandler(handler: (msg: BridgeMessage) => Promise<BridgeResponse>) {
+    this.messageHandler = handler;
+  }
+
+  public send(msg: BridgeMessage): Promise<BridgeResponse> {
+    return new Promise((resolve, reject) => {
+      if (!this.isConnected()) {
+        return reject(new Error('未連接'));
+      }
+
+      const timeout = setTimeout(() => {
+        reject(new Error('請求超時'));
+      }, 30000);
+
+      const handler = (data: Buffer) => {
+        clearTimeout(timeout);
+        try {
+          const response: BridgeResponse = JSON.parse(data.toString());
+          resolve(response);
+        } catch (e) {
+          reject(e);
+        }
+      };
+
+      this.ws!.once('message', handler);
+      this.ws!.send(JSON.stringify(msg));
     });
   }
 
@@ -55,29 +102,20 @@ export class ExtensionWSClient {
     }, 5000);
   }
 
-  public setMessageHandler(handler: (msg: BridgeMessage) => Promise<BridgeResponse>) {
-    this.messageHandler = handler;
-  }
-
-  public sendStatus(status: string) {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({
-        type: 'pong',
-        payload: { status }
-      }));
-    }
-  }
-
-  public isConnected(): boolean {
-    return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
-  }
-
   public disconnect() {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
-    this.ws?.close();
-    this.ws = null;
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+  }
+
+  private sendStatus(status: string) {
+    // 發送狀態更新到 bridge
   }
 }
+
+export const wsClient = new ExtensionWSClient();

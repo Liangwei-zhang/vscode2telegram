@@ -21,7 +21,18 @@ export class BridgeServer {
     console.log(`🔌 Bridge WebSocket Server 運行於 port ${port}`);
   }
 
-  private onConnection(ws: WebSocket) {
+  private onConnection(ws: WebSocket, req: any) {
+    // 驗證 WebSocket 認證 token
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const token = url.searchParams.get('token');
+    const expectedToken = process.env.WS_SECRET;
+    
+    if (expectedToken && token !== expectedToken) {
+      console.log('❌ WebSocket 認證失敗');
+      ws.close(1008, 'Unauthorized');
+      return;
+    }
+    
     console.log('📡 VSCode Extension 已連接');
     this.extensionSocket = ws;
 
