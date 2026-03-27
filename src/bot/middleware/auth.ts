@@ -1,22 +1,20 @@
 // bot/middleware/auth.ts - 用戶白名單驗證
 import { Context, MiddlewareFn } from 'grammy';
-
-const ALLOWED_USER_IDS = process.env.ALLOWED_TELEGRAM_USER_IDS
-  ? process.env.ALLOWED_TELEGRAM_USER_IDS.split(',').map(Number)
-  : [];
-
-// 如果沒有配置白名單，則允許所有用戶
-const ALLOW_ALL = ALLOWED_USER_IDS.length === 0;
+import { config } from '../config.js';
 
 export const authMiddleware: MiddlewareFn<Context> = async (ctx, next) => {
   const userId = ctx.from?.id;
+  const allowedUserIds = config.getTelegram().allowedUserIds;
   
   if (!userId) {
     await ctx.reply('❌ 無法識別用戶');
     return;
   }
 
-  if (!ALLOW_ALL && !ALLOWED_USER_IDS.includes(userId)) {
+  // 如果沒有配置白名單，則允許所有用戶
+  const allowAll = allowedUserIds.length === 0;
+  
+  if (!allowAll && !allowedUserIds.includes(userId)) {
     await ctx.reply('❌ 未授權，請聯繫管理員');
     return;
   }
@@ -25,9 +23,8 @@ export const authMiddleware: MiddlewareFn<Context> = async (ctx, next) => {
 };
 
 // 危險命令黑名單
-const BLOCKED_COMMANDS = ['rm -rf', 'sudo', 'chmod 777', 'mkfs', 'dd if=', '> /dev/'];
-
 export function isCommandSafe(cmd: string): boolean {
+  const blockedCommands = config.getSecurity().blockedCommands;
   const lower = cmd.toLowerCase();
-  return !BLOCKED_COMMANDS.some(blocked => lower.includes(blocked));
+  return !blockedCommands.some(blocked => lower.includes(blocked));
 }

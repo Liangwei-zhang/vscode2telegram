@@ -91,7 +91,9 @@ export interface BaseResponse {
 
 export interface PongResponse extends BaseResponse {
   type: 'pong';
-  payload: Record<string, never>;
+  payload: {
+    status: string;
+  };
 }
 
 export interface ChatDoneResponse extends BaseResponse {

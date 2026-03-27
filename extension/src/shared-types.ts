@@ -1,41 +1,149 @@
-// shared/types.ts - 共享類型定義
+// shared/types.ts - 共享類型定義（嚴格類型）
 
-export interface BridgeMessage {
+// === Bridge Message (discriminated union) ===
+
+export type BridgeMessage = 
+  | PingMessage
+  | ChatMessageReq
+  | TerminalMessageReq
+  | FileReadMessageReq
+  | FileWriteMessageReq
+  | RunCodeMessageReq
+  | GetStatusMessageReq
+  | ListFilesMessageReq;
+
+interface BaseMessage {
   id: string;
-  type: MessageType;
-  payload: Record<string, any>;
   userId: number;
   timestamp: string;
 }
 
-export type MessageType = 
-  | 'ping'
-  | 'chat'
-  | 'terminal'
-  | 'file_read'
-  | 'file_write'
-  | 'run_code'
-  | 'get_status'
-  | 'list_files';
+export interface PingMessage extends BaseMessage {
+  type: 'ping';
+  payload: Record<string, never>;
+}
 
-export interface BridgeResponse {
+export interface ChatMessageReq extends BaseMessage {
+  type: 'chat';
+  payload: {
+    message: string;
+    history?: ChatMessage[];
+  };
+}
+
+export interface TerminalMessageReq extends BaseMessage {
+  type: 'terminal';
+  payload: {
+    command: string;
+  };
+}
+
+export interface FileReadMessageReq extends BaseMessage {
+  type: 'file_read';
+  payload: {
+    path: string;
+  };
+}
+
+export interface FileWriteMessageReq extends BaseMessage {
+  type: 'file_write';
+  payload: {
+    path: string;
+    content: string;
+  };
+}
+
+export interface RunCodeMessageReq extends BaseMessage {
+  type: 'run_code';
+  payload: {
+    filePath?: string;
+  };
+}
+
+export interface GetStatusMessageReq extends BaseMessage {
+  type: 'get_status';
+  payload: Record<string, never>;
+}
+
+export interface ListFilesMessageReq extends BaseMessage {
+  type: 'list_files';
+  payload: {
+    path?: string;
+  };
+}
+
+// === Response Types ===
+
+export type BridgeResponse = 
+  | PongResponse
+  | ChatDoneResponse
+  | TerminalOutputResponse
+  | FileContentResponse
+  | RunResultResponse
+  | StatusInfoResponse
+  | FilesListResponse;
+
+export interface BaseResponse {
   id: string;
-  type: ResponseType;
-  payload: Record<string, any>;
   status: 'success' | 'error' | 'streaming';
-  error?: string;
   timestamp: string;
 }
 
-export type ResponseType = 
-  | 'pong'
-  | 'chat_chunk'
-  | 'chat_done'
-  | 'terminal_output'
-  | 'file_content'
-  | 'run_result'
-  | 'status_info'
-  | 'files_list';
+export interface PongResponse extends BaseResponse {
+  type: 'pong';
+  payload: Record<string, never>;
+}
+
+export interface ChatDoneResponse extends BaseResponse {
+  type: 'chat_done';
+  payload: {
+    full_text: string;
+  };
+}
+
+export interface TerminalOutputResponse extends BaseResponse {
+  type: 'terminal_output';
+  payload: {
+    stdout: string;
+    stderr: string;
+    exitCode: number;
+  };
+}
+
+export interface FileContentResponse extends BaseResponse {
+  type: 'file_content';
+  payload: {
+    content: string;
+  };
+}
+
+export interface RunResultResponse extends BaseResponse {
+  type: 'run_result';
+  payload: {
+    output: string;
+    exitCode: number;
+  };
+}
+
+export interface StatusInfoResponse extends BaseResponse {
+  type: 'status_info';
+  payload: {
+    connected: boolean;
+    extensionVersion?: string;
+  };
+}
+
+export interface FilesListResponse extends BaseResponse {
+  type: 'files_list';
+  payload: {
+    files: string[];
+  };
+}
+
+// === Legacy types for compatibility ===
+
+export type MessageType = BridgeMessage['type'];
+export type ResponseType = BridgeResponse['type'];
 
 export interface ChatMessage {
   role: 'user' | 'assistant';

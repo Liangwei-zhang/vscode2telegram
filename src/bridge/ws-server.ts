@@ -1,6 +1,7 @@
 // bridge/ws-server.ts - WebSocket 服務器
 import { WebSocketServer, WebSocket } from 'ws';
 import { BridgeMessage, BridgeResponse } from '../shared/types.js';
+import { config } from '../bot/config.js';
 
 interface PendingRequest {
   resolve: (res: BridgeResponse) => void;
@@ -67,7 +68,7 @@ export class BridgeServer {
       this.sendToExtension({
         id: msg.id,
         type: 'pong',
-        payload: {},
+        payload: { status: 'ok' },
         status: 'success',
         timestamp: new Date().toISOString()
       });
@@ -94,10 +95,11 @@ export class BridgeServer {
         return reject(new Error('VSCode Extension 未連接'));
       }
 
+      const timeoutMs = config.getBridge().timeout;
       const timeout = setTimeout(() => {
         this.pendingRequests.delete(msg.id);
         reject(new Error('指令超時'));
-      }, 30000);
+      }, timeoutMs);
 
       this.pendingRequests.set(msg.id, { resolve, reject, timeout });
       this.extensionSocket!.send(JSON.stringify(msg));
