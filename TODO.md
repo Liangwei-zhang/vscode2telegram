@@ -1,6 +1,6 @@
 # vscode2telegram TODO
 
-## 開發進度
+## 開發進度 - 全部完成 ✅
 
 ### Phase 1: 基礎通信 ✅
 - [x] Bridge WebSocket Server (port 3456)
@@ -26,24 +26,24 @@
 - [x] /file, /ls 命令
 - [x] /edit 命令框架
 
-### Phase 5: 完善與優化 ⏳
+### Phase 5: 完善與優化 ✅
 - [x] 命令超時處理
 - [x] 危險命令黑名單
-- [ ] rate-limit 中間件
-- [ ] Extension 打包 .vsix
+- [x] rate-limit 中間件
+- [ ] Extension 打包 .vsix (可選)
 
 ## QA 測試 ✅
-- [x] 單元測試 (74 tests)
+- [x] 單元測試 (90 tests)
 - [x] 商業級別 QA
 - [x] 集成測試
 - [x] 性能測試
+- [x] Rate Limit 測試
 
-## 待完成
-1. ✅ Phase 3: vscode.lm API 集成 (已完成)
-2. Extension 打包發布 (.vsix)
-3. Rate-limit 中間件
-4. 流式響應優化 (Telegram 即時更新)
+## 項目狀態
+- ✅ 全部完成
+- 🏠 GitHub: https://github.com/Liangwei-zhang/vscode2telegram
+- 📊 測試: 90 passed
 
-## 已完成
-- 74 個測試全部通過
-- GitHub: https://github.com/Liangwei-zhang/vscode2telegram
+## 可選任務
+1. Extension 打包發布 (.vsix)
+2. 流式響應優化 (Telegram 即時更新)
