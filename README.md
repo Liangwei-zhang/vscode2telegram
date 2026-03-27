@@ -1,5 +1,9 @@
 # vscode2telegram 🚀
 
+[![CI](https://github.com/Liangwei-zhang/vscode2telegram/actions/workflows/ci.yml/badge.svg)](https://github.com/Liangwei-zhang/vscode2telegram/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
+
 讓 Telegram 能夠控制 VSCode，執行指令並回傳結果。
 
 ## ⭐ 項目亮點
