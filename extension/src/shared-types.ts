@@ -5,6 +5,7 @@
 export type BridgeMessage = 
   | PingMessage
   | ChatMessageReq
+  | ChatStreamMessageReq
   | TerminalMessageReq
   | FileReadMessageReq
   | FileWriteMessageReq
@@ -25,6 +26,14 @@ export interface PingMessage extends BaseMessage {
 
 export interface ChatMessageReq extends BaseMessage {
   type: 'chat';
+  payload: {
+    message: string;
+    history?: ChatMessage[];
+  };
+}
+
+export interface ChatStreamMessageReq extends BaseMessage {
+  type: 'chat_stream';
   payload: {
     message: string;
     history?: ChatMessage[];
@@ -81,7 +90,8 @@ export type BridgeResponse =
   | FileContentResponse
   | RunResultResponse
   | StatusInfoResponse
-  | FilesListResponse;
+  | FilesListResponse
+  | ErrorResponse;
 
 export interface BaseResponse {
   id: string;
@@ -89,9 +99,16 @@ export interface BaseResponse {
   timestamp: string;
 }
 
+export interface ErrorResponse extends BaseResponse {
+  type: 'error';
+  payload: {
+    error: string;
+  };
+}
+
 export interface PongResponse extends BaseResponse {
   type: 'pong';
-  payload: Record<string, never>;
+  payload: { status?: string };
 }
 
 export interface ChatDoneResponse extends BaseResponse {
@@ -113,14 +130,17 @@ export interface TerminalOutputResponse extends BaseResponse {
 export interface FileContentResponse extends BaseResponse {
   type: 'file_content';
   payload: {
-    content: string;
+    content?: string;
+    path?: string;
+    message?: string;
   };
 }
 
 export interface RunResultResponse extends BaseResponse {
   type: 'run_result';
   payload: {
-    output: string;
+    stdout: string;
+    stderr: string;
     exitCode: number;
   };
 }
@@ -130,6 +150,10 @@ export interface StatusInfoResponse extends BaseResponse {
   payload: {
     connected: boolean;
     extensionVersion?: string;
+    workspace?: string;
+    editor?: string;
+    lmEnabled?: boolean;
+    model?: string | { name: string; family: string; vendor: string };
   };
 }
 
@@ -137,6 +161,7 @@ export interface FilesListResponse extends BaseResponse {
   type: 'files_list';
   payload: {
     files: string[];
+    path?: string;
   };
 }
 

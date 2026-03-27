@@ -1,5 +1,7 @@
 // bot/config.ts - 配置管理優化
 import * as fs from 'fs';
+import dotenv from 'dotenv';
+dotenv.config();
 
 interface Config {
   telegram: {

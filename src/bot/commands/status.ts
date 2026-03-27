@@ -9,7 +9,12 @@ export async function statusCommand(ctx: Context, bridgeServer: BridgeServer) {
     ? '✅ VSCode Extension 已連接'
     : '❌ VSCode Extension 未連接';
   
+  const workspaceText = status.connected && status.workspaceName
+    ? `🗂️ 工作區: ${status.workspaceName}\n📁 路徑: ${status.workspacePath}`
+    : '';
+
   const pendingText = `⏳ 待處理請求: ${status.pendingRequests}`;
   
-  await ctx.reply(`${statusText}\n${pendingText}`);
+  const lines = [statusText, workspaceText, pendingText].filter(Boolean);
+  await ctx.reply(lines.join('\n'));
 }

@@ -5,6 +5,7 @@ import type { ChatMessage } from './shared-types.js';
 export class LMHandler {
   private model: vscode.LanguageModelChat | null = null;
   private selectedModelFamily: string = 'gpt-4o';
+  private activeCancellation: vscode.CancellationTokenSource | null = null;
 
   /**
    * 獲取可用的 Chat 模型
@@ -33,12 +34,12 @@ export class LMHandler {
 
     // 優先選擇 Copilot GPT-4o
     const preferred = models.find(m => 
-      m.modelFamily?.toLowerCase().includes(this.selectedModelFamily.toLowerCase()) ||
-      m.modelFamily?.toLowerCase().includes('copilot')
+      m.family?.toLowerCase().includes(this.selectedModelFamily.toLowerCase()) ||
+      m.family?.toLowerCase().includes('copilot')
     );
 
     this.model = preferred || models[0];
-    console.log('✅ 使用模型:', this.model.modelFamily || this.model.modelId);
+    console.log('✅ 使用模型:', this.model.family || this.model.id);
     
     return this.model;
   }
@@ -78,8 +79,9 @@ export class LMHandler {
       vscode.LanguageModelChatMessage.User(message)
     ];
 
-    // 創建取消令牌
+    // 創建取消令牌（存為實例變量，支持外部取消）
     const cancellation = new vscode.CancellationTokenSource();
+    this.activeCancellation = cancellation;
     let fullResponse = '';
 
     try {
@@ -110,6 +112,16 @@ export class LMHandler {
       throw e;
     } finally {
       cancellation.dispose();
+      this.activeCancellation = null;
+    }
+  }
+
+  /**
+   * 取消當前進行中的 LM 請求
+   */
+  cancelCurrentRequest(): void {
+    if (this.activeCancellation) {
+      this.activeCancellation.cancel();
     }
   }
 
@@ -127,8 +139,8 @@ export class LMHandler {
     if (!this.model) return null;
     
     return {
-      name: this.model.modelId,
-      family: this.model.modelFamily || 'unknown',
+      name: this.model.id,
+      family: this.model.family || 'unknown',
       vendor: (this.model as any).vendor || 'unknown'
     };
   }

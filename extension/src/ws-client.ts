@@ -8,17 +8,31 @@ export class ExtensionWSClient {
   private messageHandler: ((msg: BridgeMessage) => Promise<BridgeResponse>) | null = null;
   private bridgeUrl: string = 'ws://127.0.0.1:3456';
   private wsSecret: string = '';
+  private workspaceName: string = 'unknown';
+  private workspacePath: string = 'unknown';
 
-  constructor(bridgeUrl?: string, wsSecret?: string) {
+  constructor(bridgeUrl?: string, wsSecret?: string, workspaceName?: string, workspacePath?: string) {
     if (bridgeUrl) {
       this.bridgeUrl = bridgeUrl;
     }
     if (wsSecret) {
       this.wsSecret = wsSecret;
     }
+    if (workspaceName) {
+      this.workspaceName = workspaceName;
+    }
+    if (workspacePath) {
+      this.workspacePath = workspacePath;
+    }
   }
 
   public connect() {
+    // 防止重複連接
+    if (this.ws && (this.ws.readyState === WebSocket.CONNECTING || this.ws.readyState === WebSocket.OPEN)) {
+      console.log('⚠️ 已有活躍連接，跳過重複 connect()');
+      return;
+    }
+
     // 添加 token 認證參數
     const url = this.wsSecret 
       ? `${this.bridgeUrl}?token=${encodeURIComponent(this.wsSecret)}`
@@ -29,7 +43,11 @@ export class ExtensionWSClient {
 
     this.ws.on('open', () => {
       console.log('✅ 已連接到 Bridge Server');
-      this.sendStatus('connected');
+      this.ws?.send(JSON.stringify({
+        type: 'hello',
+        workspaceName: this.workspaceName,
+        workspacePath: this.workspacePath
+      }));
     });
 
     this.ws.on('message', async (data) => {
@@ -48,18 +66,14 @@ export class ExtensionWSClient {
 
     this.ws.on('close', () => {
       console.log('❌ 與 Bridge Server 斷開連接');
-      this.extensionSocket = null;
+      this.ws = null;
       this.scheduleReconnect();
     });
 
     this.ws.on('error', (err) => {
       console.error('❌ WebSocket 錯誤:', err.message);
     });
-
-    this.extensionSocket = this.ws;
   }
-
-  private extensionSocket: WebSocket | null = null;
 
   public isConnected(): boolean {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN;

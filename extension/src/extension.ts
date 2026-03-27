@@ -13,7 +13,13 @@ export function activate(context: vscode.ExtensionContext) {
   dispatcher = new CommandDispatcher();
 
   // 初始化 WebSocket Client
-  wsClient = new ExtensionWSClient();
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  const workspaceName = workspaceFolders?.[0]?.name ?? 'unknown';
+  const workspacePath = workspaceFolders?.[0]?.uri.fsPath ?? 'unknown';
+  const bridgePort = vscode.workspace.getConfiguration('vscode2telegram').get<number>('bridgePort', 3456);
+  const wsSecret = vscode.workspace.getConfiguration('vscode2telegram').get<string>('wsSecret', '');
+  const bridgeUrl = `ws://127.0.0.1:${bridgePort}`;
+  wsClient = new ExtensionWSClient(bridgeUrl, wsSecret, workspaceName, workspacePath);
   wsClient.setMessageHandler(async (msg) => {
     return await dispatcher.dispatch(msg);
   });

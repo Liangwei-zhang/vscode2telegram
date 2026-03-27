@@ -1,6 +1,7 @@
 // bot/middleware/auth.ts - 用戶白名單驗證
 import { Context, MiddlewareFn } from 'grammy';
 import { config } from '../config.js';
+import { logger } from '../../shared/logger.js';
 
 export const authMiddleware: MiddlewareFn<Context> = async (ctx, next) => {
   const userId = ctx.from?.id;
@@ -15,6 +16,7 @@ export const authMiddleware: MiddlewareFn<Context> = async (ctx, next) => {
   const allowAll = allowedUserIds.length === 0;
   
   if (!allowAll && !allowedUserIds.includes(userId)) {
+    logger.info(`AUTH_DENIED: userId=${userId} username=${ctx.from?.username ?? 'N/A'}`);
     await ctx.reply('❌ 未授權，請聯繫管理員');
     return;
   }

@@ -32,8 +32,10 @@ export class FileManager {
 
     const fullPath = path.join(this.getRoot(), cleaned);
     
-    // 確保最終路徑在允許的目錄內
-    if (!fullPath.startsWith(this.getRoot())) {
+    // 確保最終路徑在允許的目錄內（Windows 不區分大小寫）
+    const normalizedFull = fullPath.toLowerCase();
+    const normalizedRoot = this.getRoot().toLowerCase();
+    if (!normalizedFull.startsWith(normalizedRoot)) {
       throw new Error('路徑驗證失敗');
     }
 

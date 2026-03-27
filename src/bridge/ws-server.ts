@@ -14,6 +14,8 @@ export class BridgeServer {
   private extensionSocket: WebSocket | null = null;
   private pendingRequests = new Map<string, PendingRequest>();
   private messageHandler: ((msg: BridgeMessage) => Promise<BridgeResponse>) | null = null;
+  private connectedWorkspaceName: string | null = null;
+  private connectedWorkspacePath: string | null = null;
 
   constructor(port: number = 3456) {
     this.wss = new WebSocketServer({ host: '127.0.0.1', port });
@@ -35,6 +37,8 @@ export class BridgeServer {
     
     console.log('📡 VSCode Extension 已連接');
     this.extensionSocket = ws;
+    this.connectedWorkspaceName = null;
+    this.connectedWorkspacePath = null;
 
     ws.on('message', async (data) => {
       try {
@@ -48,6 +52,8 @@ export class BridgeServer {
     ws.on('close', () => {
       console.log('❌ VSCode Extension 斷開連接');
       this.extensionSocket = null;
+      this.connectedWorkspaceName = null;
+      this.connectedWorkspacePath = null;
       // 拒絕所有 pending requests
       for (const [id, pending] of this.pendingRequests) {
         clearTimeout(pending.timeout);
@@ -61,7 +67,15 @@ export class BridgeServer {
     });
   }
 
-  private async handleMessage(msg: BridgeMessage | BridgeResponse, ws: WebSocket) {
+  private async handleMessage(msg: any, ws: WebSocket) {
+    // 處理 hello 握手消息
+    if (msg.type === 'hello') {
+      this.connectedWorkspaceName = msg.workspaceName ?? null;
+      this.connectedWorkspacePath = msg.workspacePath ?? null;
+      console.log(`🗂️  工作區: ${this.connectedWorkspaceName} (${this.connectedWorkspacePath})`);
+      return;
+    }
+
     // 檢查是否為 pending request 的回應
     const pending = this.pendingRequests.get(msg.id);
     if (pending) {
@@ -126,7 +140,9 @@ export class BridgeServer {
   public getStatus() {
     return {
       connected: this.isConnected(),
-      pendingRequests: this.pendingRequests.size
+      pendingRequests: this.pendingRequests.size,
+      workspaceName: this.connectedWorkspaceName,
+      workspacePath: this.connectedWorkspacePath
     };
   }
 }

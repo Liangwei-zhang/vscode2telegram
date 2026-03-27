@@ -29,6 +29,13 @@ export class CommandDispatcher {
     this.useRealLM = false;
   }
 
+  /**
+   * 取消當前進行中的 LM 請求
+   */
+  cancelCurrentLMRequest(): void {
+    this.lmHandler.cancelCurrentRequest();
+  }
+
   async dispatch(msg: BridgeMessage): Promise<BridgeResponse> {
     const { id, type, payload } = msg;
 
@@ -47,7 +54,7 @@ export class CommandDispatcher {
           return await this.handleFileWrite(id, payload.path, payload.content);
         
         case 'list_files':
-          return await this.handleListFiles(id, payload.path);
+          return await this.handleListFiles(id, payload.path ?? '');
         
         case 'run_code':
           return await this.handleRunCode(id, payload.filePath);
@@ -80,14 +87,18 @@ export class CommandDispatcher {
   }
 
   private async handleTerminal(id: string, command: string): Promise<BridgeResponse> {
-    const result = await this.terminalRunner.run(command);
-    return {
-      id,
-      type: 'terminal_output',
-      payload: result,
-      status: 'success',
-      timestamp: new Date().toISOString()
-    };
+    try {
+      const result = await this.terminalRunner.run(command);
+      return {
+        id,
+        type: 'terminal_output',
+        payload: result,
+        status: 'success',
+        timestamp: new Date().toISOString()
+      };
+    } catch (e: any) {
+      return this.errorResponse(id, `終端錯誤: ${e.message}`);
+    }
   }
 
   private async handleFileRead(id: string, filePath: string): Promise<BridgeResponse> {
@@ -163,24 +174,29 @@ export class CommandDispatcher {
   }
 
   private getRunCommand(lang: string, filePath?: string): string | null {
-    const commands: Record<string, string> = {
-      javascript: 'node',
-      typescript: 'npx ts-node',
-      python: 'python3',
-      go: 'go run',
-      rust: 'cargo run',
-      java: 'java',
-      cpp: 'g++ -o /tmp/a.out && /tmp/a.out',
-      c: 'gcc -o /tmp/a.out && /tmp/a.out',
-      html: 'echo "請在瀏覽器打開"',
-      css: 'echo "請在瀏覽器打開"'
-    };
-    
-    const cmd = commands[lang];
-    if (cmd && filePath) {
-      return `${cmd} ${filePath}`;
+    // cpp/c 需要多步編譯，不支持 execFile 單命令執行
+    if (lang === 'cpp' || lang === 'c') {
+      return null;
     }
-    return cmd ? `${cmd} ${filePath || ''}` : null;
+
+    const commandArgs: Record<string, string[]> = {
+      javascript: ['node'],
+      typescript: ['npx', 'ts-node'],
+      python: ['python3'],
+      go: ['go', 'run'],
+      rust: ['cargo', 'run'],
+      java: ['java'],
+      html: ['echo', '請在瀏覽器打開'],
+      css: ['echo', '請在瀏覽器打開']
+    };
+
+    const parts = commandArgs[lang];
+    if (!parts) return null;
+
+    if (filePath) {
+      return [...parts, filePath].join(' ');
+    }
+    return parts.join(' ');
   }
 
   private async handleStatus(id: string): Promise<BridgeResponse> {
@@ -292,10 +308,9 @@ export class CommandDispatcher {
   private errorResponse(id: string, error: string): BridgeResponse {
     return {
       id,
-      type: 'chat_done',
+      type: 'error',
       payload: { error },
       status: 'error',
-      error,
       timestamp: new Date().toISOString()
     };
   }

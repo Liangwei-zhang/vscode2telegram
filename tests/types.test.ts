@@ -54,27 +54,27 @@ describe('Shared Types', () => {
     it('should have error status', () => {
       const res: BridgeResponse = {
         id: 'test-123',
-        type: 'chat_done',
-        payload: {},
+        type: 'error',
+        payload: { error: 'Something went wrong' },
         status: 'error',
-        error: 'Something went wrong',
         timestamp: '2026-03-26T12:00:00Z'
       };
       
       expect(res.status).toBe('error');
-      expect(res.error).toBe('Something went wrong');
+      expect(res.payload.error).toBe('Something went wrong');
     });
 
-    it('should support streaming status', () => {
+    it('should support error response type', () => {
       const res: BridgeResponse = {
         id: 'test-123',
-        type: 'chat_chunk',
-        payload: { chunk: 'Hello' },
-        status: 'streaming',
+        type: 'error',
+        payload: { error: 'LM 錯誤: 模型不可用' },
+        status: 'error',
         timestamp: '2026-03-26T12:00:00Z'
       };
       
-      expect(res.status).toBe('streaming');
+      expect(res.type).toBe('error');
+      expect(res.status).toBe('error');
     });
   });
 

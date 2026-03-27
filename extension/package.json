@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "publisher": "Liangwei-zhang",
   "engines": {
-    "vscode": "^1.90.0"
+    "vscode": "^1.110.0"
   },
   "activationEvents": [
     "onStartupFinished"
@@ -25,7 +25,22 @@
         "command": "vscode2telegram.status",
         "title": "Connection Status"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "VSCode2Telegram",
+      "properties": {
+        "vscode2telegram.bridgePort": {
+          "type": "number",
+          "default": 3456,
+          "description": "Bridge WebSocket server port (must match VSCODE_EXTENSION_PORT in .env)"
+        },
+        "vscode2telegram.wsSecret": {
+          "type": "string",
+          "default": "",
+          "description": "WebSocket authentication secret (must match WS_SECRET in .env)"
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

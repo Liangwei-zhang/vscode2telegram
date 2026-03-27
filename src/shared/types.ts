@@ -81,12 +81,20 @@ export type BridgeResponse =
   | FileContentResponse
   | RunResultResponse
   | StatusInfoResponse
-  | FilesListResponse;
+  | FilesListResponse
+  | ErrorResponse;
 
 export interface BaseResponse {
   id: string;
   status: 'success' | 'error' | 'streaming';
   timestamp: string;
+}
+
+export interface ErrorResponse extends BaseResponse {
+  type: 'error';
+  payload: {
+    error: string;
+  };
 }
 
 export interface PongResponse extends BaseResponse {

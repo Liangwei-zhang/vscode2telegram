@@ -27,7 +27,7 @@ export class TerminalRunner {
     // 危險模式檢測
     const dangerous = [
       /;\s*rm\s+-rf/i, /&&\s*rm\s+-rf/i, /\|\s*rm\s+-rf/i,
-      /:\(\)\{/:, /eval\s*\(/, /\`.*\`/,
+      /:\(\)\{/, /eval\s*\(/, /`.*`/,
       /\$\(.*\)/, /\$HOME/, /\$PATH/
     ];
     
