@@ -1,0 +1,20 @@
+{
+  "name": "vscode2telegram",
+  "version": "1.0.0",
+  "description": "Telegram bot to control VSCode and get results back",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "npx tsx src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "grammy": "^1.19.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "tsx": "^4.7.0",
+    "@types/node": "^20.10.0"
+  }
+}
