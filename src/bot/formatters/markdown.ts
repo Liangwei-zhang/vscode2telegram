@@ -51,10 +51,10 @@ export function toTelegramMarkdown(text: string): string {
   result = result.replace(/^## (.+)$/gm, (_, inner) => createPlaceholder(`*${escapeTelegramMarkdown(inner)}*`));
   result = result.replace(/^# (.+)$/gm, (_, inner) => createPlaceholder(`*${escapeTelegramMarkdown(inner)}*`));
 
-  // 7. 列表
-  result = result.replace(/^- (.+)$/gm, (_, inner) => createPlaceholder(`• ${inner}`));
-  result = result.replace(/^\* (.+)$/gm, (_, inner) => createPlaceholder(`• ${inner}`));
-  result = result.replace(/^\d+\. (.+)$/gm, (_, inner) => createPlaceholder(`• ${inner}`));
+  // 7. 列表 - 內部需要轉義
+  result = result.replace(/^- (.+)$/gm, (_, inner) => createPlaceholder(`• ${escapeTelegramMarkdown(inner)}`));
+  result = result.replace(/^\* (.+)$/gm, (_, inner) => createPlaceholder(`• ${escapeTelegramMarkdown(inner)}`));
+  result = result.replace(/^\d+\. (.+)$/gm, (_, inner) => createPlaceholder(`• ${escapeTelegramMarkdown(inner)}`));
 
   // 8. 轉義剩餘特殊字符
   result = escapeTelegramMarkdown(result);
