@@ -25,7 +25,7 @@ export const authMiddleware: MiddlewareFn<Context> = async (ctx, next) => {
 };
 
 // 危險命令黑名單
-const BLOCKED_COMMANDS = ['rm -rf', 'sudo', 'chmod 777', '> /dev/'];
+const BLOCKED_COMMANDS = ['rm -rf', 'sudo', 'chmod 777', 'mkfs', 'dd if=', '> /dev/'];
 
 export function isCommandSafe(cmd: string): boolean {
   const lower = cmd.toLowerCase();
