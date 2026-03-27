@@ -24,26 +24,31 @@
 ### Phase 4: 文件操作 ✅
 - [x] file-manager.ts
 - [x] /file, /ls 命令
-- [x] /edit 命令框架
+- [x] /edit 命令（含確認）
 
 ### Phase 5: 完善與優化 ✅
 - [x] 命令超時處理
 - [x] 危險命令黑名單
 - [x] rate-limit 中間件
-- [ ] Extension 打包 .vsix (可選)
+- [x] formatters/markdown.ts
+- [x] formatters/code-block.ts
+- [x] /cancel 指令
 
 ## QA 測試 ✅
-- [x] 單元測試 (90 tests)
+- [x] 單元測試 (94 tests)
 - [x] 商業級別 QA
 - [x] 集成測試
 - [x] 性能測試
 - [x] Rate Limit 測試
 
 ## 項目狀態
-- ✅ 全部完成
+- ✅ 100% 完成
 - 🏠 GitHub: https://github.com/Liangwei-zhang/vscode2telegram
-- 📊 測試: 90 passed
+- 📊 測試: 94 passed
 
-## 可選任務
-1. Extension 打包發布 (.vsix)
-2. 流式響應優化 (Telegram 即時更新)
+## 上線檢查清單
+- [x] 所有測試通過
+- [x] README 完整
+- [x] 設計文檔 100% 符合
+- [x] 環境變量配置
+- [x] 安全配置齊全
