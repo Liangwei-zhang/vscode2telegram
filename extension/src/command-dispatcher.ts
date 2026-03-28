@@ -1,5 +1,7 @@
 // extension/command-dispatcher.ts - 指令路由分發
 import * as vscode from 'vscode';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 import { BridgeMessage, BridgeResponse, ChatMessage } from './shared-types.js';
 import { TerminalRunner } from './terminal-runner.js';
 import { FileManager } from './file-manager.js';
@@ -262,6 +264,35 @@ export class CommandDispatcher {
   }
 
   /**
+   * 直接讀取項目所有源碼文件（用 fs.readFile 而非 openTextDocument，避免觸發語言服務，速度快 10x）
+   */
+  private async readProjectFiles(glob: string, maxTotalChars = 80000): Promise<string> {
+    const wsFolder = vscode.workspace.workspaceFolders?.[0];
+    if (!wsFolder) return '';
+    const lines: string[] = [`工作區: ${wsFolder.name} (${wsFolder.uri.fsPath})\n`];
+    const files = await vscode.workspace.findFiles(glob, '{node_modules,dist,out,.git,*.vsix,logs}/**', 120);
+    files.sort((a, b) => a.fsPath.localeCompare(b.fsPath));
+    let totalChars = 0;
+    for (const fileUri of files) {
+      if (totalChars >= maxTotalChars) {
+        lines.push(`\n...(已達字符上限，剩餘文件未讀取)`);
+        break;
+      }
+      try {
+        const content = await fs.readFile(fileUri.fsPath, 'utf-8');
+        const rel = vscode.workspace.asRelativePath(fileUri);
+        const ext = rel.split('.').pop() || '';
+        const fileLines = content.split('\n');
+        const preview = fileLines.slice(0, 300).join('\n') + (fileLines.length > 300 ? '\n...(截斷)' : '');
+        const block = `\n📄 ${rel}:\n\`\`\`${ext}\n${preview}\n\`\`\``;
+        lines.push(block);
+        totalChars += block.length;
+      } catch { /* 跳過不可讀取的文件 */ }
+    }
+    return lines.join('\n');
+  }
+
+  /**
    * 解析消息中的 #file:路徑 引用，讀取文件內容注入上下文
    */
   private async resolveFileReferences(message: string): Promise<{ cleanMessage: string; fileContents: string }> {
@@ -288,48 +319,32 @@ export class CommandDispatcher {
   }
 
   /**
-   * 收集工作區上下文信息（含當前文件內容和項目結構）
+   * 收集工作區上下文信息（含全部源碼文件內容 + 當前文件/選中代碼）
    */
   private async buildWorkspaceContext(): Promise<string> {
     const lines: string[] = [];
 
-    // 工作區名稱和路徑
-    const wsFolder = vscode.workspace.workspaceFolders?.[0];
-    if (wsFolder) {
-      lines.push(`工作區: ${wsFolder.name} (${wsFolder.uri.fsPath})`);
-    }
-
-    // 項目文件結構
+    // 讀取全部項目源碼（40k chars 限制，為 history + question 保留空間）
     try {
-      const files = await vscode.workspace.findFiles(
-        '{src,extension/src,tests}/**/*.{ts,js,json}',
-        '{node_modules,dist,out,.git}/**',
-        50
+      const projectFiles = await this.readProjectFiles(
+        '**/*.{ts,js,json,md,css,html,sh}',
+        40000
       );
-      if (files.length > 0) {
-        const filePaths = files.map(f => vscode.workspace.asRelativePath(f)).sort();
-        lines.push(`\n項目文件結構:\n${filePaths.join('\n')}`);
-      }
+      lines.push(projectFiles);
     } catch { /* ignore */ }
 
-    // 當前活動的文件（包含完整內容）
+    // 當前活動的文件（補充完整內容 + 選中代碼）
     const editor = vscode.window.activeTextEditor;
     if (editor) {
       const doc = editor.document;
       const relativePath = vscode.workspace.asRelativePath(doc.uri);
-      lines.push(`\n當前文件: ${relativePath} (語言: ${doc.languageId})`);
+      lines.push(`\n⭐ 當前正在編輯的文件: ${relativePath} (語言: ${doc.languageId})`);
 
-      // 注入文件內容（最多 200 行）
-      const content = doc.getText();
-      const contentLines = content.split('\n');
-      const preview = contentLines.slice(0, 200).join('\n') + (contentLines.length > 200 ? '\n... (已截斷)' : '');
-      lines.push(`\n文件內容:\n\`\`\`${doc.languageId}\n${preview}\n\`\`\``);
-
-      // 選中的文字
+      // 選中的文字（優先展示）
       const selection = editor.selection;
       if (!selection.isEmpty) {
         const selectedText = doc.getText(selection);
-        if (selectedText.length <= 1000) {
+        if (selectedText.length <= 2000) {
           lines.push(`\n用戶選中的代碼:\n\`\`\`${doc.languageId}\n${selectedText}\n\`\`\``);
         }
       }
@@ -429,45 +444,8 @@ export class CommandDispatcher {
         };
       }
 
-      // 讀取所有項目源碼文件
-      const wsFolder = vscode.workspace.workspaceFolders?.[0];
-      const projectContext: string[] = [];
-
-      if (wsFolder) {
-        projectContext.push(`工作區: ${wsFolder.name} (${wsFolder.uri.fsPath})\n`);
-
-        // 查找所有源碼文件（排除 node_modules / dist / out / .git）
-        const files = await vscode.workspace.findFiles(
-          '**/*.{ts,js,json,md}',
-          '{node_modules,dist,out,.git,*.vsix}/**',
-          120
-        );
-        files.sort((a, b) => a.fsPath.localeCompare(b.fsPath));
-
-        let totalChars = 0;
-        const MAX_TOTAL_CHARS = 80000; // 約 20k token，留空間給 question + history
-
-        for (const fileUri of files) {
-          if (totalChars >= MAX_TOTAL_CHARS) {
-            projectContext.push(`\n...(已達上限，剩餘 ${files.length} 個文件未讀取)`);
-            break;
-          }
-          try {
-            const doc = await vscode.workspace.openTextDocument(fileUri);
-            const relativePath = vscode.workspace.asRelativePath(fileUri);
-            const content = doc.getText();
-            const ext = relativePath.split('.').pop() || '';
-            // 單文件最多 300 行
-            const lines = content.split('\n');
-            const preview = lines.slice(0, 300).join('\n') + (lines.length > 300 ? '\n...(截斷)' : '');
-            const block = `\n📄 ${relativePath}:\n\`\`\`${ext}\n${preview}\n\`\`\``;
-            projectContext.push(block);
-            totalChars += block.length;
-          } catch { /* 跳過不可讀取的文件 */ }
-        }
-      }
-
-      const fullContext = projectContext.join('\n');
+      // 讀取所有項目源碼文件（使用快速 fs.readFile）
+      const fullContext = await this.readProjectFiles('**/*.{ts,js,json,md}', 80000);
       const response = await this.lmHandler.chat(question, history, undefined, fullContext);
 
       return {
@@ -513,32 +491,11 @@ export class CommandDispatcher {
         };
       }
 
-      // 1. 收集全项目源码上下文
-      const wsFolder = vscode.workspace.workspaceFolders?.[0];
-      const projectContext: string[] = [];
-      if (wsFolder) {
-        projectContext.push(`工作區: ${wsFolder.name} (${wsFolder.uri.fsPath})\n`);
-        const files = await vscode.workspace.findFiles(
-          '**/*.{ts,js,json,md,css,html,sh,env}',
-          '{node_modules,dist,out,.git,*.vsix,logs}/**',
-          120
-        );
-        files.sort((a, b) => a.fsPath.localeCompare(b.fsPath));
-        let totalChars = 0;
-        for (const fileUri of files) {
-          if (totalChars >= 80000) break;
-          try {
-            const doc = await vscode.workspace.openTextDocument(fileUri);
-            const rel = vscode.workspace.asRelativePath(fileUri);
-            const ext = rel.split('.').pop() || '';
-            const lines = doc.getText().split('\n');
-            const preview = lines.slice(0, 300).join('\n') + (lines.length > 300 ? '\n...(截斷)' : '');
-            const block = `\n📄 ${rel}:\n\`\`\`${ext}\n${preview}\n\`\`\``;
-            projectContext.push(block);
-            totalChars += block.length;
-          } catch { /* skip */ }
-        }
-      }
+      // 1. 收集全项目源码上下文（使用快速 fs.readFile）
+      const projectFilesContext = await this.readProjectFiles(
+        '**/*.{ts,js,json,md,css,html,sh,env}',
+        80000
+      );
 
       // 2. 构造 Agent 系统 prompt
       const systemPrompt =
@@ -551,7 +508,7 @@ export class CommandDispatcher {
         `<<<CMD>>>\n命令\n<<<END>>>\n\n` +
         `3. 可以同時輸出多個 FILE 和 CMD 塊。\n` +
         `4. 在所有操作塊之後，輸出一段簡短的中文摘要說明做了什麼。\n\n` +
-        `當前項目代碼：\n` + projectContext.join('\n');
+        `當前項目代碼：\n` + projectFilesContext;
 
       // 3. 调用 AI
       const aiResponse = await this.lmHandler.chat(task, history, undefined, systemPrompt);

@@ -39,7 +39,7 @@ const DEFAULT_CONFIG: Config = {
   bridge: {
     port: parseInt(process.env.BRIDGE_PORT || '3456'),
     host: process.env.BRIDGE_HOST || '127.0.0.1',
-    timeout: parseInt(process.env.COMMAND_TIMEOUT_MS || '30000')
+    timeout: parseInt(process.env.COMMAND_TIMEOUT_MS || '180000')
   },
   security: {
     blockedCommands: ['rm -rf', 'sudo', 'chmod 777', '> /dev/', 'dd if='],
