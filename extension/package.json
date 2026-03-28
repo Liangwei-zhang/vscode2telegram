@@ -2,7 +2,7 @@
   "name": "vscode2telegram-extension",
   "displayName": "VSCode2Telegram Bridge",
   "description": "Connect VSCode to Telegram Bot for remote control",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "publisher": "Liangwei-zhang",
   "engines": {
     "vscode": "^1.110.0"
@@ -43,7 +43,8 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run bundle",
+    "bundle": "node esbuild.mjs",
     "compile": "tsc -p ./tsconfig.json",
     "watch": "tsc -watch -p ./tsconfig.json"
   },
@@ -53,6 +54,7 @@
   "devDependencies": {
     "@types/node": "^20.10.0",
     "@types/vscode": "^1.110.0",
+    "esbuild": "^0.27.4",
     "typescript": "^5.3.0"
   }
 }
