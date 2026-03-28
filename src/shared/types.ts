@@ -14,7 +14,9 @@ export type BridgeMessage =
   | CreateDirMessageReq
   | RunCodeMessageReq
   | GetStatusMessageReq
-  | ListFilesMessageReq;
+  | ListFilesMessageReq
+  | ModelListMessageReq
+  | ModelSetMessageReq;
 
 interface BaseMessage {
   id: string;
@@ -106,6 +108,18 @@ export interface ListFilesMessageReq extends BaseMessage {
   };
 }
 
+export interface ModelListMessageReq extends BaseMessage {
+  type: 'model_list';
+  payload: Record<string, never>;
+}
+
+export interface ModelSetMessageReq extends BaseMessage {
+  type: 'model_set';
+  payload: {
+    modelId: string;
+  };
+}
+
 // === Response Types ===
 
 export type BridgeResponse = 
@@ -117,6 +131,7 @@ export type BridgeResponse =
   | RunResultResponse
   | StatusInfoResponse
   | FilesListResponse
+  | ModelListResponse
   | ErrorResponse;
 
 export interface BaseResponse {
@@ -191,6 +206,14 @@ export interface FilesListResponse extends BaseResponse {
   type: 'files_list';
   payload: {
     files: string[];
+  };
+}
+
+export interface ModelListResponse extends BaseResponse {
+  type: 'model_list';
+  payload: {
+    models: Array<{ id: string; family: string; vendor: string; version: string }>;
+    current: string;
   };
 }
 

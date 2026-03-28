@@ -17,6 +17,7 @@ import { qaCommand } from './commands/qa.js';
 import { deleteCommand, mkdirCommand } from './commands/fileops.js';
 import { agentCommand } from './commands/agent.js';
 import { proxyCommand, applyStartupProxy } from './commands/proxy.js';
+import { modelCommand } from './commands/model.js';
 import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { config } from './config.js';
@@ -142,6 +143,11 @@ bot.command('qa', async (ctx) => {
 bot.command('proxy', async (ctx) => {
   const args = ctx.message?.text.split(' ').slice(1).join(' ') || '';
   await proxyCommand(ctx, args);
+});
+
+bot.command('model', async (ctx) => {
+  const args = ctx.message?.text.split(' ').slice(1).join(' ') || '';
+  await modelCommand(ctx, args, bridgeServer);
 });
 
 bot.command('agent', async (ctx) => {

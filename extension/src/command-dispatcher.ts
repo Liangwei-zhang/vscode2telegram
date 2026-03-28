@@ -82,6 +82,12 @@ export class CommandDispatcher {
         case 'agent_task':
           return await this.handleAgentTask(id, payload.task, payload.history || []);
         
+        case 'model_list':
+          return await this.handleModelList(id);
+        
+        case 'model_set':
+          return await this.handleModelSet(id, payload.modelId);
+        
         default:
           return this.errorResponse(id, `未知指令: ${type}`);
       }
@@ -562,6 +568,50 @@ export class CommandDispatcher {
       };
     } catch (e: any) {
       return this.errorResponse(id, `Agent 錯誤: ${e.message}`);
+    }
+  }
+
+  /**
+   * 列出所有可用 LM 模型
+   */
+  private async handleModelList(id: string): Promise<BridgeResponse> {
+    try {
+      const models = await this.lmHandler.listAllModels();
+      const info = this.lmHandler.getModelInfo();
+      const current = info?.name || 'none';
+      return {
+        id,
+        type: 'model_list',
+        payload: { models, current },
+        status: 'success',
+        timestamp: new Date().toISOString()
+      };
+    } catch (e: any) {
+      return this.errorResponse(id, `獲取模型列表失敗: ${e.message}`);
+    }
+  }
+
+  /**
+   * 切換 LM 模型
+   */
+  private async handleModelSet(id: string, modelId: string): Promise<BridgeResponse> {
+    try {
+      const result = await this.lmHandler.setModelById(modelId);
+      if (!result) {
+        return this.errorResponse(id, `找不到模型: "${modelId}"，請用 /model 查看可用列表`);
+      }
+      return {
+        id,
+        type: 'model_list',
+        payload: {
+          models: await this.lmHandler.listAllModels(),
+          current: result.id
+        },
+        status: 'success',
+        timestamp: new Date().toISOString()
+      };
+    } catch (e: any) {
+      return this.errorResponse(id, `切換模型失敗: ${e.message}`);
     }
   }
 

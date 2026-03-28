@@ -150,7 +150,38 @@ export class LMHandler {
   }
 
   /**
-   * 檢查是否有可用的模型
+   * 列出所有可用模型（含詳細信息）
+   */
+  async listAllModels(): Promise<Array<{ id: string; family: string; vendor: string; version: string }>> {
+    const models = await this.getChatModels();
+    return models.map(m => ({
+      id: m.id,
+      family: m.family || 'unknown',
+      vendor: (m as any).vendor || 'unknown',
+      version: (m as any).version || 'unknown'
+    }));
+  }
+
+  /**
+   * 按 id 或 family 切換模型（即刻生效）
+   */
+  async setModelById(modelId: string): Promise<{ id: string; family: string } | null> {
+    const models = await this.getChatModels();
+    const target = models.find(
+      m => m.id === modelId ||
+           m.family?.toLowerCase() === modelId.toLowerCase() ||
+           m.id.toLowerCase().includes(modelId.toLowerCase()) ||
+           (m.family || '').toLowerCase().includes(modelId.toLowerCase())
+    );
+    if (!target) return null;
+    this.model = target;
+    this.selectedModelFamily = target.family || target.id;
+    console.log('🔄 模型已切換:', target.id);
+    return { id: target.id, family: target.family || 'unknown' };
+  }
+
+  /**
+   * 检查是否有可用的模型
    */
   async hasAvailableModel(): Promise<boolean> {
     const models = await this.getChatModels();
