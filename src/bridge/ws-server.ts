@@ -163,18 +163,58 @@ export class BridgeServer {
   }
 
   public async sendCommand(msg: BridgeMessage): Promise<BridgeResponse> {
-    const conn = this.activeConnectionId ? this.connections.get(this.activeConnectionId) : null;
-    if (!conn || conn.ws.readyState !== WebSocket.OPEN) {
+    // Build ordered list: active connection first, then others
+    const orderedIds: string[] = [];
+    if (this.activeConnectionId && this.connections.has(this.activeConnectionId)) {
+      orderedIds.push(this.activeConnectionId);
+    }
+    for (const id of this.connections.keys()) {
+      if (!orderedIds.includes(id)) orderedIds.push(id);
+    }
+    if (orderedIds.length === 0) {
       throw new Error('VSCode Extension 未連接');
     }
 
+    let lastError = new Error('VSCode Extension 未連接');
+    for (const connId of orderedIds) {
+      const conn = this.connections.get(connId);
+      if (!conn || conn.ws.readyState !== WebSocket.OPEN) continue;
+
+      let response: BridgeResponse;
+      try {
+        response = await this.sendToConnection(conn, msg);
+      } catch (e: any) {
+        lastError = e;
+        continue;
+      }
+
+      // If this connection returns "未知指令", it has old extension code — try next
+      const errMsg: string = (response.payload as any)?.error ?? '';
+      if (response.status === 'error' && errMsg.includes('未知指令')) {
+        lastError = new Error(errMsg);
+        continue;
+      }
+
+      // Got a valid response — if we used a fallback, switch active to it
+      if (connId !== this.activeConnectionId) {
+        this.activeConnectionId = connId;
+        console.log(`🔄 自動切換到: ${conn.workspaceName} (支持此指令)`);
+      }
+      return response;
+    }
+    throw lastError;
+  }
+
+  private sendToConnection(conn: ExtensionConnection, msg: BridgeMessage): Promise<BridgeResponse> {
     return new Promise((resolve, reject) => {
+      if (conn.ws.readyState !== WebSocket.OPEN) {
+        return reject(new Error('連接已斷開'));
+      }
       const timeoutMs = config.getBridge().timeout;
       const timeout = setTimeout(() => {
         conn.pendingRequests.delete(msg.id);
         reject(new Error('指令超時'));
       }, timeoutMs);
-
       conn.pendingRequests.set(msg.id, { resolve, reject, timeout });
       conn.ws.send(JSON.stringify(msg));
     });
