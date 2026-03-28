@@ -50,7 +50,8 @@ export class LMHandler {
   async chat(
     message: string,
     history: ChatMessage[],
-    onChunk?: (chunk: string) => void
+    onChunk?: (chunk: string) => void,
+    workspaceContext?: string
   ): Promise<string> {
     // 確保模型已選擇
     if (!this.model) {
@@ -61,14 +62,17 @@ export class LMHandler {
       throw new Error('沒有可用的 Language Model，請安裝 GitHub Copilot 或其他支持 vscode.lm 的擴展');
     }
 
+    // 構建系統提示
+    const systemPrompt =
+      '你是一個 VSCode 中的編程助手，用戶通過 Telegram 遠程與你交互。' +
+      '請直接給出代碼和簡潔的解釋，避免過多廢話。' +
+      '如果需要多個文件，請標註文件名。' +
+      (workspaceContext ? `\n\n當前工作區信息：\n${workspaceContext}` : '');
+
     // 構建消息列表
     const messages: vscode.LanguageModelChatMessage[] = [
       // 系統提示（使用 User 角色）
-      vscode.LanguageModelChatMessage.User(
-        '你是一個 VSCode 中的編程助手，用戶通過 Telegram 遠程與你交互。' +
-        '請直接給出代碼和簡潔的解釋，避免過多廢話。' +
-        '如果需要多個文件，請標註文件名。'
-      ),
+      vscode.LanguageModelChatMessage.User(systemPrompt),
       // 歷史記錄
       ...history.map(h =>
         h.role === 'user'

@@ -12,6 +12,9 @@ import { editCommand, handleConfirmEdit, handleCancelEdit } from './commands/edi
 import { statsCommand, topUsersCommand } from './commands/stats.js';
 import { helpCommand } from './commands/help.js';
 import { cancelCommand } from './commands/cancel.js';
+import { projectsCommand, useCommand } from './commands/projects.js';
+import { qaCommand } from './commands/qa.js';
+import { deleteCommand, mkdirCommand } from './commands/fileops.js';
 import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { config } from './config.js';
@@ -55,18 +58,32 @@ bot.command('start', async (ctx) => {
   await ctx.reply(
     '✅ VSCode2Telegram 已連接！\n\n' +
     '可用指令：\n' +
-    '/chat <message> - 與 Agent 對話\n' +
+    '/chat <message> - 與 AI 對話（自動感知當前文件+項目結構）\n' +
+    '  例: /chat 這個文件有什麼問題？\n' +
+    '  例: /chat #file:src/bot/index.ts 解釋這個\n' +
     '/terminal <command> - 執行終端命令\n' +
     '/file <path> - 讀取文件\n' +
     '/ls [path] - 列出文件\n' +
     '/run [file] - 執行代碼\n' +
+    '/projects - 列出所有已連接的 VSCode 窗口\n' +
+    '/use <項目名> - 切換操作的項目\n' +
     '/status - 連接狀態\n' +
-    '/clear - 清空對話歷史'
+    '/clear - 清空對話歷史\n' +
+    '/help - 完整幫助'
   );
 });
 
 bot.command('status', async (ctx) => {
   await statusCommand(ctx, bridgeServer);
+});
+
+bot.command('projects', async (ctx) => {
+  await projectsCommand(ctx, bridgeServer);
+});
+
+bot.command('use', async (ctx) => {
+  const name = ctx.message?.text.split(' ').slice(1).join(' ');
+  await useCommand(ctx, name || '', bridgeServer);
 });
 
 bot.command('stats', async (ctx) => {
@@ -108,7 +125,10 @@ bot.command('chat', async (ctx) => {
   }
   await chatCommand(ctx, message, bridgeServer, sessionManager);
 });
-
+bot.command('qa', async (ctx) => {
+  const question = ctx.message?.text.split(' ').slice(1).join(' ') || '請對整個項目代碼做全面 QA，找出所有潛在協一、bug、類型錯誤、遣漏的錯誤處理和安全問題。';
+  await qaCommand(ctx, question, bridgeServer, sessionManager);
+});
 bot.command('file', async (ctx) => {
   const path = ctx.message?.text.split(' ').slice(1).join(' ');
   if (!path) {
@@ -121,6 +141,16 @@ bot.command('file', async (ctx) => {
 bot.command('ls', async (ctx) => {
   const path = ctx.message?.text.split(' ').slice(1).join(' ') || '';
   await fileCommand(ctx, path, 'list', bridgeServer);
+});
+
+bot.command('delete', async (ctx) => {
+  const path = ctx.message?.text.split(' ').slice(1).join(' ');
+  await deleteCommand(ctx, path || '', bridgeServer);
+});
+
+bot.command('mkdir', async (ctx) => {
+  const path = ctx.message?.text.split(' ').slice(1).join(' ');
+  await mkdirCommand(ctx, path || '', bridgeServer);
 });
 
 bot.command('run', async (ctx) => {

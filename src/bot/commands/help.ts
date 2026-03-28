@@ -7,12 +7,21 @@ const HELP_TEXT = `🤖 VSCode2Telegram 指令列表
 /start - 開始使用
 /help - 顯示幫助
 /status - 連接狀態
+/projects - 列出所有已連接的 VSCode 窗口
+/use <項目名> - 切換要操作的項目
 /stats - 系統統計
 
-💬 AI 對話
-/chat <message> - 與 AI 對話
+💬 AI 對話（自動感知當前文件+項目結構）
+/chat <message> - 與 AI 對話（自動注入當前文件+項目結構）
+/qa [問題] - 讀取項目所有源碼做全面 QA（不傳問題則做通用 QA）
+直接發文字 - 等同 /chat
 /clear - 清空對話歷史
 /cancel - 取消請求
+
+📎 引用文件（類似 Copilot #file）
+在消息中加 #file:路徑 引用任意文件，例如：
+/chat #file:src/bot/index.ts 幫我重構這個文件
+/chat #file:src/shared/types.ts 這個類型定義有什麼問題
 
 💻 終端命令
 /terminal <command> - 執行終端命令
@@ -22,12 +31,14 @@ const HELP_TEXT = `🤖 VSCode2Telegram 指令列表
 /file <path> - 讀取文件
 /ls [path] - 列出文件
 /edit <path> <content> - 寫入文件
+/delete <path> - 刪除文件或目錄
+/mkdir <path> - 建立目錄
 
 ⚙️ 快速範例
 /terminal ls -la
-/chat 幫我寫一個函數
+/chat 當前文件有什麼問題？
+/chat #file:src/bot/index.ts 解釋這個文件的結構
 /file src/index.ts
-/stats
 
 🔒 安全
 - 用戶白名單驗證

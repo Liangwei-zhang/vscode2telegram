@@ -5,9 +5,12 @@
 export type BridgeMessage = 
   | PingMessage
   | ChatMessageReq
+  | QaProjectMessageReq
   | TerminalMessageReq
   | FileReadMessageReq
   | FileWriteMessageReq
+  | FileDeleteMessageReq
+  | CreateDirMessageReq
   | RunCodeMessageReq
   | GetStatusMessageReq
   | ListFilesMessageReq;
@@ -31,6 +34,14 @@ export interface ChatMessageReq extends BaseMessage {
   };
 }
 
+export interface QaProjectMessageReq extends BaseMessage {
+  type: 'qa_project';
+  payload: {
+    question: string;
+    history?: ChatMessage[];
+  };
+}
+
 export interface TerminalMessageReq extends BaseMessage {
   type: 'terminal';
   payload: {
@@ -50,6 +61,20 @@ export interface FileWriteMessageReq extends BaseMessage {
   payload: {
     path: string;
     content: string;
+  };
+}
+
+export interface FileDeleteMessageReq extends BaseMessage {
+  type: 'file_delete';
+  payload: {
+    path: string;
+  };
+}
+
+export interface CreateDirMessageReq extends BaseMessage {
+  type: 'create_dir';
+  payload: {
+    path: string;
   };
 }
 

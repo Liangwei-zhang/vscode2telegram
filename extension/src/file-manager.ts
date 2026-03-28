@@ -60,6 +60,28 @@ export class FileManager {
     return files.map(f => vscode.workspace.asRelativePath(f));
   }
 
+  async deleteFile(relativePath: string): Promise<void> {
+    const fullPath = this.validatePath(relativePath);
+    const stat = await fs.stat(fullPath);
+    if (stat.isDirectory()) {
+      await fs.rm(fullPath, { recursive: true, force: true });
+    } else {
+      await fs.unlink(fullPath);
+    }
+    // 如果文件在 VSCode 中打開則關閉
+    const uri = vscode.Uri.file(fullPath);
+    const openDoc = vscode.workspace.textDocuments.find(d => d.uri.fsPath === fullPath);
+    if (openDoc) {
+      await vscode.window.showTextDocument(openDoc);
+      await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+    }
+  }
+
+  async createDir(relativePath: string): Promise<void> {
+    const fullPath = this.validatePath(relativePath);
+    await fs.mkdir(fullPath, { recursive: true });
+  }
+
   async fileExists(relativePath: string): Promise<boolean> {
     try {
       const fullPath = this.validatePath(relativePath);

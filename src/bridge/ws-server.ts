@@ -1,5 +1,6 @@
-// bridge/ws-server.ts - WebSocket 服務器
+// bridge/ws-server.ts - WebSocket 服務器（支持多 VSCode 窗口連接）
 import { WebSocketServer, WebSocket } from 'ws';
+import { v4 as uuidv4 } from 'uuid';
 import { BridgeMessage, BridgeResponse } from '../shared/types.js';
 import { config } from '../bot/config.js';
 
@@ -9,13 +10,19 @@ interface PendingRequest {
   timeout: NodeJS.Timeout;
 }
 
+export interface ExtensionConnection {
+  id: string;
+  ws: WebSocket;
+  workspaceName: string;
+  workspacePath: string;
+  pendingRequests: Map<string, PendingRequest>;
+}
+
 export class BridgeServer {
   private wss: WebSocketServer;
-  private extensionSocket: WebSocket | null = null;
-  private pendingRequests = new Map<string, PendingRequest>();
+  private connections = new Map<string, ExtensionConnection>();
+  private activeConnectionId: string | null = null;
   private messageHandler: ((msg: BridgeMessage) => Promise<BridgeResponse>) | null = null;
-  private connectedWorkspaceName: string | null = null;
-  private connectedWorkspacePath: string | null = null;
 
   constructor(port: number = 3456) {
     this.wss = new WebSocketServer({ host: '127.0.0.1', port });
@@ -24,42 +31,61 @@ export class BridgeServer {
   }
 
   private onConnection(ws: WebSocket, req: any) {
-    // 驗證 WebSocket 認證 token
     const url = new URL(req.url, `http://${req.headers.host}`);
     const token = url.searchParams.get('token');
     const expectedToken = process.env.WS_SECRET;
-    
+
     if (expectedToken && token !== expectedToken) {
       console.log('❌ WebSocket 認證失敗');
       ws.close(1008, 'Unauthorized');
       return;
     }
-    
-    console.log('📡 VSCode Extension 已連接');
-    this.extensionSocket = ws;
-    this.connectedWorkspaceName = null;
-    this.connectedWorkspacePath = null;
+
+    const connId = uuidv4();
+    const conn: ExtensionConnection = {
+      id: connId,
+      ws,
+      workspaceName: '未知',
+      workspacePath: '',
+      pendingRequests: new Map()
+    };
+    this.connections.set(connId, conn);
+
+    // 新連接若無活跃連接則自動設為活跃
+    if (!this.activeConnectionId || !this.connections.has(this.activeConnectionId)) {
+      this.activeConnectionId = connId;
+    }
+
+    console.log(`📡 VSCode Extension 已連接 (id: ${connId.slice(0, 8)})`);
 
     ws.on('message', async (data) => {
       try {
         const raw = JSON.parse(data.toString());
-        await this.handleMessage(raw, ws);
+        await this.handleMessage(raw, conn);
       } catch (e) {
         console.error('❌ 消息解析錯誤:', e);
       }
     });
 
     ws.on('close', () => {
-      console.log('❌ VSCode Extension 斷開連接');
-      this.extensionSocket = null;
-      this.connectedWorkspaceName = null;
-      this.connectedWorkspacePath = null;
-      // 拒絕所有 pending requests
-      for (const [id, pending] of this.pendingRequests) {
+      console.log(`❌ VSCode Extension 斷開連接: ${conn.workspaceName}`);
+      // 拒絕該連接的所有 pending requests
+      for (const [, pending] of conn.pendingRequests) {
         clearTimeout(pending.timeout);
         pending.reject(new Error('連接斷開'));
       }
-      this.pendingRequests.clear();
+      conn.pendingRequests.clear();
+      this.connections.delete(connId);
+
+      // 活跃連接斷開時，切換到第一個可用連接
+      if (this.activeConnectionId === connId) {
+        const next = this.connections.keys().next().value;
+        this.activeConnectionId = next ?? null;
+        if (this.activeConnectionId) {
+          const nextConn = this.connections.get(this.activeConnectionId)!;
+          console.log(`🔄 自動切換到: ${nextConn.workspaceName}`);
+        }
+      }
     });
 
     ws.on('error', (err) => {
@@ -67,42 +93,38 @@ export class BridgeServer {
     });
   }
 
-  private async handleMessage(msg: any, ws: WebSocket) {
-    // 處理 hello 握手消息
+  private async handleMessage(msg: any, conn: ExtensionConnection) {
     if (msg.type === 'hello') {
-      this.connectedWorkspaceName = msg.workspaceName ?? null;
-      this.connectedWorkspacePath = msg.workspacePath ?? null;
-      console.log(`🗂️  工作區: ${this.connectedWorkspaceName} (${this.connectedWorkspacePath})`);
+      conn.workspaceName = msg.workspaceName ?? '未知';
+      conn.workspacePath = msg.workspacePath ?? '';
+      console.log(`🗂️  工作區: ${conn.workspaceName} (${conn.workspacePath})`);
       return;
     }
 
-    // 檢查是否為 pending request 的回應
-    const pending = this.pendingRequests.get(msg.id);
+    const pending = conn.pendingRequests.get(msg.id);
     if (pending) {
       clearTimeout(pending.timeout);
-      this.pendingRequests.delete(msg.id);
-      // 如果是 BridgeResponse 格式，直接 resolve
+      conn.pendingRequests.delete(msg.id);
       if ('status' in msg) {
         pending.resolve(msg as BridgeResponse);
         return;
       }
     }
 
-    // 處理其他消息，通過 handler
     if ('type' in msg && msg.type === 'ping') {
-      this.sendToExtension({
+      conn.ws.send(JSON.stringify({
         id: msg.id,
         type: 'pong',
         payload: { status: 'ok' },
         status: 'success',
         timestamp: new Date().toISOString()
-      });
+      }));
       return;
     }
 
     if (this.messageHandler) {
       const response = await this.messageHandler(msg as BridgeMessage);
-      this.sendToExtension(response);
+      conn.ws.send(JSON.stringify(response));
     }
   }
 
@@ -110,39 +132,69 @@ export class BridgeServer {
     this.messageHandler = handler;
   }
 
+  /** 獲取所有已連接的工作區列表 */
+  public getConnections(): Array<{ id: string; workspaceName: string; workspacePath: string; isActive: boolean }> {
+    return Array.from(this.connections.values()).map(c => ({
+      id: c.id,
+      workspaceName: c.workspaceName,
+      workspacePath: c.workspacePath,
+      isActive: c.id === this.activeConnectionId
+    }));
+  }
+
+  /** 切換活跃連接（按工作區名稱模糊匹配或 id 前綴） */
+  public switchConnection(nameOrId: string): ExtensionConnection | null {
+    const lower = nameOrId.toLowerCase();
+    for (const conn of this.connections.values()) {
+      if (
+        conn.workspaceName.toLowerCase().includes(lower) ||
+        conn.id.startsWith(lower)
+      ) {
+        this.activeConnectionId = conn.id;
+        return conn;
+      }
+    }
+    return null;
+  }
+
   public isConnected(): boolean {
-    return this.extensionSocket !== null && this.extensionSocket.readyState === WebSocket.OPEN;
+    const active = this.activeConnectionId ? this.connections.get(this.activeConnectionId) : null;
+    return active !== undefined && active !== null && active.ws.readyState === WebSocket.OPEN;
   }
 
   public async sendCommand(msg: BridgeMessage): Promise<BridgeResponse> {
-    return new Promise((resolve, reject) => {
-      if (!this.isConnected()) {
-        return reject(new Error('VSCode Extension 未連接'));
-      }
+    const conn = this.activeConnectionId ? this.connections.get(this.activeConnectionId) : null;
+    if (!conn || conn.ws.readyState !== WebSocket.OPEN) {
+      throw new Error('VSCode Extension 未連接');
+    }
 
+    return new Promise((resolve, reject) => {
       const timeoutMs = config.getBridge().timeout;
       const timeout = setTimeout(() => {
-        this.pendingRequests.delete(msg.id);
+        conn.pendingRequests.delete(msg.id);
         reject(new Error('指令超時'));
       }, timeoutMs);
 
-      this.pendingRequests.set(msg.id, { resolve, reject, timeout });
-      this.extensionSocket!.send(JSON.stringify(msg));
+      conn.pendingRequests.set(msg.id, { resolve, reject, timeout });
+      conn.ws.send(JSON.stringify(msg));
     });
   }
 
   public sendToExtension(response: BridgeResponse) {
-    if (this.extensionSocket && this.isConnected()) {
-      this.extensionSocket.send(JSON.stringify(response));
+    const conn = this.activeConnectionId ? this.connections.get(this.activeConnectionId) : null;
+    if (conn && conn.ws.readyState === WebSocket.OPEN) {
+      conn.ws.send(JSON.stringify(response));
     }
   }
 
   public getStatus() {
+    const active = this.activeConnectionId ? this.connections.get(this.activeConnectionId) : null;
     return {
       connected: this.isConnected(),
-      pendingRequests: this.pendingRequests.size,
-      workspaceName: this.connectedWorkspaceName,
-      workspacePath: this.connectedWorkspacePath
+      totalConnections: this.connections.size,
+      pendingRequests: active?.pendingRequests.size ?? 0,
+      workspaceName: active?.workspaceName ?? null,
+      workspacePath: active?.workspacePath ?? null
     };
   }
 }

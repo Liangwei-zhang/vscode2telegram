@@ -9,8 +9,9 @@ let dispatcher: CommandDispatcher;
 export function activate(context: vscode.ExtensionContext) {
   console.log('📡 VSCode2Telegram Extension 啟動');
 
-  // 初始化 Command Dispatcher
+  // 初始化 Command Dispatcher，啟用真實 LM
   dispatcher = new CommandDispatcher();
+  dispatcher.enableRealLM();
 
   // 初始化 WebSocket Client
   const workspaceFolders = vscode.workspace.workspaceFolders;
