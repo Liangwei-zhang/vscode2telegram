@@ -16,6 +16,7 @@ import { projectsCommand, useCommand } from './commands/projects.js';
 import { qaCommand } from './commands/qa.js';
 import { deleteCommand, mkdirCommand } from './commands/fileops.js';
 import { agentCommand } from './commands/agent.js';
+import { proxyCommand, applyStartupProxy } from './commands/proxy.js';
 import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { config } from './config.js';
@@ -26,6 +27,12 @@ dotenv.config();
 
 // 設置全局錯誤處理
 setupGlobalErrorHandlers();
+
+// 應用啟動代理（如果 .env 中有 PROXY_URL）
+const startupProxy = applyStartupProxy();
+if (startupProxy) {
+  console.log(`🌐 使用代理: ${startupProxy}`);
+}
 
 const token = process.env.TELEGRAM_BOT_TOKEN || '';
 if (!token) {
@@ -68,6 +75,7 @@ bot.command('start', async (ctx) => {
     '/run [file] - 執行代碼\n' +
     '/projects - 列出所有已連接的 VSCode 窗口\n' +
     '/use <項目名> - 切換操作的項目\n' +
+    '/proxy - 查看/切換代理\n' +
     '/status - 連接狀態\n' +
     '/clear - 清空對話歷史\n' +
     '/help - 完整幫助'
@@ -129,6 +137,11 @@ bot.command('chat', async (ctx) => {
 bot.command('qa', async (ctx) => {
   const question = ctx.message?.text.split(' ').slice(1).join(' ') || '請對整個項目代碼做全面 QA，找出所有潛在協一、bug、類型錯誤、遣漏的錯誤處理和安全問題。';
   await qaCommand(ctx, question, bridgeServer, sessionManager);
+});
+
+bot.command('proxy', async (ctx) => {
+  const args = ctx.message?.text.split(' ').slice(1).join(' ') || '';
+  await proxyCommand(ctx, args);
 });
 
 bot.command('agent', async (ctx) => {
