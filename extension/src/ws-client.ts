@@ -91,7 +91,7 @@ export class ExtensionWSClient {
 
       const timeout = setTimeout(() => {
         reject(new Error('請求超時'));
-      }, 30000);
+      }, 180000);
 
       const handler = (data: Buffer) => {
         clearTimeout(timeout);

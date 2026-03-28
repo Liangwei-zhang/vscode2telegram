@@ -5,6 +5,7 @@ import { BridgeMessage, BridgeResponse, ChatDoneResponse } from '../../shared/ty
 import { BridgeServer } from '../../bridge/ws-server.js';
 import { SessionManager } from '../../bridge/session-manager.js';
 import { cancelHandler } from './cancel.js';
+import { sendLongReply } from '../utils/reply.js';
 
 function isChatDoneResponse(res: BridgeResponse): res is ChatDoneResponse {
   return res.type === 'chat_done';
@@ -44,7 +45,7 @@ export async function chatCommand(
     if (response.status === 'success' && isChatDoneResponse(response)) {
       sessionManager.appendHistory(userId, 'user', message);
       sessionManager.appendHistory(userId, 'assistant', response.payload.full_text);
-      await ctx.reply(response.payload.full_text);
+      await sendLongReply(ctx, response.payload.full_text);
     } else {
       await ctx.reply(`❌ 錯誤: ${(response.payload as any).error || '未知錯誤'}`);
     }

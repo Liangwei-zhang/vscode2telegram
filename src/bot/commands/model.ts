@@ -3,6 +3,7 @@ import { Context } from 'grammy';
 import { v4 as uuidv4 } from 'uuid';
 import { BridgeMessage, BridgeResponse, ModelListResponse } from '../../shared/types.js';
 import { BridgeServer } from '../../bridge/ws-server.js';
+import { sendLongReply } from '../utils/reply.js';
 
 function isModelListResponse(res: BridgeResponse): res is ModelListResponse {
   return res.type === 'model_list';
@@ -86,7 +87,7 @@ export async function modelCommand(ctx: Context, args: string, bridgeServer: Bri
       return `• \`${m.id}\`${active}\n  └ family: \`${m.family}\`  vendor: \`${m.vendor}\``;
     });
 
-    await ctx.reply(
+    await sendLongReply(ctx,
       `🤖 *可用模型列表*\n\n` +
       lines.join('\n\n') +
       `\n\n*當前使用：* \`${current}\`\n\n` +

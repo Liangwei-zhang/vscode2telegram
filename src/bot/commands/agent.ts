@@ -5,6 +5,7 @@ import { BridgeMessage, BridgeResponse, AgentResultResponse } from '../../shared
 import { BridgeServer } from '../../bridge/ws-server.js';
 import { SessionManager } from '../../bridge/session-manager.js';
 import { cancelHandler } from './cancel.js';
+import { sendLongReply } from '../utils/reply.js';
 
 function isAgentResultResponse(res: BridgeResponse): res is AgentResultResponse {
   return res.type === 'agent_result';
@@ -71,11 +72,11 @@ export async function agentCommand(
         // AI 没有输出 FILE/CMD 块，直接回复摘要文本
         sessionManager.appendHistory(userId, 'user', task);
         sessionManager.appendHistory(userId, 'assistant', summary);
-        await ctx.reply(summary);
+        await sendLongReply(ctx, summary);
       } else {
         sessionManager.appendHistory(userId, 'user', task);
         sessionManager.appendHistory(userId, 'assistant', summary);
-        await ctx.reply(parts.join('\n\n'));
+        await sendLongReply(ctx, parts.join('\n\n'));
       }
     } else {
       await ctx.reply(`❌ 錯誤: ${(response.payload as any).error || '未知錯誤'}`);
