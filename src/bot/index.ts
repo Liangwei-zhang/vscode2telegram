@@ -15,6 +15,7 @@ import { cancelCommand } from './commands/cancel.js';
 import { projectsCommand, useCommand } from './commands/projects.js';
 import { qaCommand } from './commands/qa.js';
 import { deleteCommand, mkdirCommand } from './commands/fileops.js';
+import { agentCommand } from './commands/agent.js';
 import { authMiddleware } from './middleware/auth.js';
 import { rateLimitMiddleware } from './middleware/rate-limit.js';
 import { config } from './config.js';
@@ -128,6 +129,22 @@ bot.command('chat', async (ctx) => {
 bot.command('qa', async (ctx) => {
   const question = ctx.message?.text.split(' ').slice(1).join(' ') || '請對整個項目代碼做全面 QA，找出所有潛在協一、bug、類型錯誤、遣漏的錯誤處理和安全問題。';
   await qaCommand(ctx, question, bridgeServer, sessionManager);
+});
+
+bot.command('agent', async (ctx) => {
+  const task = ctx.message?.text.split(' ').slice(1).join(' ');
+  if (!task) {
+    await ctx.reply(
+      '❌ 請描述任務\n\n' +
+      '例如:\n' +
+      '/agent 幫我對這個項目做代碼 QA 並修復所有問題\n' +
+      '/agent 新增一個 /ping 指令到 bot\n' +
+      '/agent 將項目的所有 console.log 改為 logger\n' +
+      '/agent git add -A 然後 commit 所有變更'
+    );
+    return;
+  }
+  await agentCommand(ctx, task, bridgeServer, sessionManager);
 });
 bot.command('file', async (ctx) => {
   const path = ctx.message?.text.split(' ').slice(1).join(' ');

@@ -11,6 +11,12 @@ const HELP_TEXT = `🤖 VSCode2Telegram 指令列表
 /use <項目名> - 切換要操作的項目
 /stats - 系統統計
 
+🤖 AI Agent（直接操作項目）
+/agent <任務> - AI 自動讀取全部代碼、修改文件、執行命令
+  例: /agent 幫我對這個項目做 QA 並修復潜在 bug
+  例: /agent 新增一個 /ping 指令到 Telegram bot
+  例: /agent git commit 所有未提交的變更
+
 💬 AI 對話（自動感知當前文件+項目結構）
 /chat <message> - 與 AI 對話（自動注入當前文件+項目結構）
 /qa [問題] - 讀取項目所有源碼做全面 QA（不傳問題則做通用 QA）

@@ -6,6 +6,7 @@ export type BridgeMessage =
   | PingMessage
   | ChatMessageReq
   | QaProjectMessageReq
+  | AgentTaskMessageReq
   | ChatStreamMessageReq
   | TerminalMessageReq
   | FileReadMessageReq
@@ -39,6 +40,14 @@ export interface QaProjectMessageReq extends BaseMessage {
   type: 'qa_project';
   payload: {
     question: string;
+    history?: ChatMessage[];
+  };
+}
+
+export interface AgentTaskMessageReq extends BaseMessage {
+  type: 'agent_task';
+  payload: {
+    task: string;
     history?: ChatMessage[];
   };
 }
@@ -111,6 +120,7 @@ export interface ListFilesMessageReq extends BaseMessage {
 export type BridgeResponse = 
   | PongResponse
   | ChatDoneResponse
+  | AgentResultResponse
   | TerminalOutputResponse
   | FileContentResponse
   | RunResultResponse
@@ -140,6 +150,15 @@ export interface ChatDoneResponse extends BaseResponse {
   type: 'chat_done';
   payload: {
     full_text: string;
+  };
+}
+
+export interface AgentResultResponse extends BaseResponse {
+  type: 'agent_result';
+  payload: {
+    summary: string;
+    filesChanged: string[];
+    terminalOutputs: Array<{ command: string; output: string; exitCode: number }>;
   };
 }
 

@@ -77,6 +77,9 @@ export class CommandDispatcher {
         case 'qa_project':
           return await this.handleQaProject(id, payload.question, payload.history || []);
         
+        case 'agent_task':
+          return await this.handleAgentTask(id, payload.task, payload.history || []);
+        
         default:
           return this.errorResponse(id, `未知指令: ${type}`);
       }
@@ -476,6 +479,132 @@ export class CommandDispatcher {
       };
     } catch (e: any) {
       return this.errorResponse(id, `QA 錯誤: ${e.message}`);
+    }
+  }
+
+  /**
+   * Agent 任務：AI 规划 → 解析代码块 → 批量写文件 → 执行 terminal 指令
+   *
+   * AI 响应约定格式：
+   *   <<<FILE:path/to/file.ts>>>
+   *   ...文件完整内容...
+   *   <<<END>>>
+   *
+   *   <<<CMD>>>
+   *   git add -A && git commit -m "..."
+   *   <<<END>>>
+   */
+  private async handleAgentTask(id: string, task: string, history: ChatMessage[]): Promise<BridgeResponse> {
+    if (!this.useRealLM) {
+      return {
+        id, type: 'chat_done',
+        payload: { full_text: this.getMockResponse(task) },
+        status: 'success', timestamp: new Date().toISOString()
+      };
+    }
+
+    try {
+      const hasLM = await this.lmHandler.hasAvailableModel();
+      if (!hasLM) {
+        return {
+          id, type: 'chat_done',
+          payload: { full_text: '⚠️ 沒有可用的 Language Model' },
+          status: 'success', timestamp: new Date().toISOString()
+        };
+      }
+
+      // 1. 收集全项目源码上下文
+      const wsFolder = vscode.workspace.workspaceFolders?.[0];
+      const projectContext: string[] = [];
+      if (wsFolder) {
+        projectContext.push(`工作區: ${wsFolder.name} (${wsFolder.uri.fsPath})\n`);
+        const files = await vscode.workspace.findFiles(
+          '**/*.{ts,js,json,md,css,html,sh,env}',
+          '{node_modules,dist,out,.git,*.vsix,logs}/**',
+          120
+        );
+        files.sort((a, b) => a.fsPath.localeCompare(b.fsPath));
+        let totalChars = 0;
+        for (const fileUri of files) {
+          if (totalChars >= 80000) break;
+          try {
+            const doc = await vscode.workspace.openTextDocument(fileUri);
+            const rel = vscode.workspace.asRelativePath(fileUri);
+            const ext = rel.split('.').pop() || '';
+            const lines = doc.getText().split('\n');
+            const preview = lines.slice(0, 300).join('\n') + (lines.length > 300 ? '\n...(截斷)' : '');
+            const block = `\n📄 ${rel}:\n\`\`\`${ext}\n${preview}\n\`\`\``;
+            projectContext.push(block);
+            totalChars += block.length;
+          } catch { /* skip */ }
+        }
+      }
+
+      // 2. 构造 Agent 系统 prompt
+      const systemPrompt =
+        `你是一個直接操作 VSCode 項目的 AI Agent，用戶通過 Telegram 控制你。\n` +
+        `你必須直接修改文件、執行命令，而不是只描述步驟。\n\n` +
+        `輸出格式規則（嚴格遵守）：\n` +
+        `1. 需要寫入或修改文件時，用以下格式輸出完整文件內容：\n` +
+        `<<<FILE:相對路徑>>>\n文件完整內容\n<<<END>>>\n\n` +
+        `2. 需要執行終端命令時（如 git commit、npm install）：\n` +
+        `<<<CMD>>>\n命令\n<<<END>>>\n\n` +
+        `3. 可以同時輸出多個 FILE 和 CMD 塊。\n` +
+        `4. 在所有操作塊之後，輸出一段簡短的中文摘要說明做了什麼。\n\n` +
+        `當前項目代碼：\n` + projectContext.join('\n');
+
+      // 3. 调用 AI
+      const aiResponse = await this.lmHandler.chat(task, history, undefined, systemPrompt);
+
+      // 4. 解析 FILE 块并写入文件
+      const filesChanged: string[] = [];
+      const filePattern = /<<<FILE:([^>]+)>>>([\s\S]*?)<<<END>>>/g;
+      let match;
+      while ((match = filePattern.exec(aiResponse)) !== null) {
+        const filePath = match[1].trim();
+        const content = match[2].replace(/^\n/, '').replace(/\n$/, '');
+        try {
+          await this.fileManager.writeFile(filePath, content);
+          filesChanged.push(filePath);
+        } catch (e: any) {
+          filesChanged.push(`❌ ${filePath}: ${e.message}`);
+        }
+      }
+
+      // 5. 解析 CMD 块并执行
+      const terminalOutputs: Array<{ command: string; output: string; exitCode: number }> = [];
+      const cmdPattern = /<<<CMD>>>([\s\S]*?)<<<END>>>/g;
+      while ((cmdPattern.exec(aiResponse)) !== null) {
+        // re-exec with fresh regex to capture groups
+      }
+      const cmdPattern2 = /<<<CMD>>>([\s\S]*?)<<<END>>>/g;
+      let cmdMatch;
+      while ((cmdMatch = cmdPattern2.exec(aiResponse)) !== null) {
+        const command = cmdMatch[1].trim();
+        if (!command) continue;
+        try {
+          const result = await this.terminalRunner.run(command);
+          terminalOutputs.push({ command, output: result.stdout || result.stderr, exitCode: result.exitCode });
+        } catch (e: any) {
+          terminalOutputs.push({ command, output: e.message, exitCode: 1 });
+        }
+      }
+
+      // 6. 提取摘要（去掉所有 <<<...>>> 块后的剩余文本）
+      const summary = aiResponse
+        .replace(/<<<FILE:[^>]+>>>[\s\S]*?<<<END>>>/g, '')
+        .replace(/<<<CMD>>>[\s\S]*?<<<END>>>/g, '')
+        .trim() || '✅ 任務完成';
+
+      return {
+        id,
+        type: 'agent_result',
+        payload: { summary, filesChanged, terminalOutputs },
+        status: 'success',
+        timestamp: new Date().toISOString()
+      };
+    } catch (e: any) {
+      return this.errorResponse(id, `Agent 錯誤: ${e.message}`);
     }
   }
 
