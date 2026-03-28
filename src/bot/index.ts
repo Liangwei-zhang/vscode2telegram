@@ -225,6 +225,30 @@ logger.info('VSCode2Telegram Bot 啟動中...');
 bot.start();
 logger.info('Bot 運行中...');
 
+// 向 Telegram 注冊指令列表（讓 Telegram APP 識別所有指令）
+bot.api.setMyCommands([
+  { command: 'chat',     description: 'AI 對話（自動感知項目文件）' },
+  { command: 'qa',       description: '全項目代碼 QA 分析' },
+  { command: 'agent',    description: 'AI Agent：自動修改文件+執行命令' },
+  { command: 'model',    description: '查看/切換 LM 模型' },
+  { command: 'terminal', description: '執行終端命令' },
+  { command: 'file',     description: '讀取文件' },
+  { command: 'ls',       description: '列出文件' },
+  { command: 'edit',     description: '寫入文件' },
+  { command: 'run',      description: '執行代碼文件' },
+  { command: 'delete',   description: '刪除文件/目錄' },
+  { command: 'mkdir',    description: '創建目錄' },
+  { command: 'projects', description: '列出所有已連接的 VSCode 窗口' },
+  { command: 'use',      description: '切換操作的 VSCode 項目' },
+  { command: 'proxy',    description: '查看/切換 HTTP 代理' },
+  { command: 'status',   description: '連接狀態' },
+  { command: 'clear',    description: '清空對話歷史' },
+  { command: 'cancel',   description: '取消當前請求' },
+  { command: 'stats',    description: '系統統計' },
+  { command: 'help',     description: '完整幫助' },
+]).then(() => logger.info('✅ Telegram 指令列表已更新'))
+  .catch((e) => logger.warn(`⚠️ 更新指令列表失敗: ${e.message}`));
+
 // Graceful shutdown
 const shutdown = () => {
   logger.info('關閉中...');
