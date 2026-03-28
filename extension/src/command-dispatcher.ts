@@ -452,7 +452,18 @@ export class CommandDispatcher {
 
       // 讀取所有項目源碼文件（使用快速 fs.readFile）
       const fullContext = await this.readProjectFiles('**/*.{ts,js,json,md}', 80000);
-      const response = await this.lmHandler.chat(question, history, undefined, fullContext);
+
+      const qaSystemPrompt =
+        `你是一個專業的代碼審查員，正在分析下面提供的完整項目源碼。\n` +
+        `你的任務是直接對代碼進行分析，給出具體的發現結果。\n\n` +
+        `重要規則：\n` +
+        `- 不要建議用戶「去終端執行某命令」或「在 IDE 中運行某工具」\n` +
+        `- 直接分析代碼，列出具體問題（哪個文件第幾行有什麼問題）\n` +
+        `- 對找到的問題，直接給出修復後的代碼片段\n` +
+        `- 用中文回答，分類列出：Bug、類型問題、安全問題、性能問題、代碼品質\n\n` +
+        `項目源碼：\n` + fullContext;
+
+      const response = await this.lmHandler.chat(question, history, undefined, qaSystemPrompt);
 
       return {
         id,
@@ -505,16 +516,26 @@ export class CommandDispatcher {
 
       // 2. 构造 Agent 系统 prompt
       const systemPrompt =
-        `你是一個直接操作 VSCode 項目的 AI Agent，用戶通過 Telegram 控制你。\n` +
-        `你必須直接修改文件、執行命令，而不是只描述步驟。\n\n` +
-        `輸出格式規則（嚴格遵守）：\n` +
-        `1. 需要寫入或修改文件時，用以下格式輸出完整文件內容：\n` +
-        `<<<FILE:相對路徑>>>\n文件完整內容\n<<<END>>>\n\n` +
-        `2. 需要執行終端命令時（如 git commit、npm install）：\n` +
-        `<<<CMD>>>\n命令\n<<<END>>>\n\n` +
-        `3. 可以同時輸出多個 FILE 和 CMD 塊。\n` +
-        `4. 在所有操作塊之後，輸出一段簡短的中文摘要說明做了什麼。\n\n` +
-        `當前項目代碼：\n` + projectFilesContext;
+        `你是一個直接操作 VSCode 項目的 AI Agent，由用戶通過 Telegram 遠程控制。\n` +
+        `本系統會自動解析你輸出的特殊格式塊並立即執行——這是唯一的執行方式。\n\n` +
+        `【絕對禁止】：\n` +
+        `- 禁止說「請在終端執行...」「請運行...」「你需要...」\n` +
+        `- 禁止只給建議或描述步驟，必須直接輸出可執行的格式塊\n` +
+        `- 禁止用 markdown 代碼塊（\`\`\`）代替格式塊\n\n` +
+        `【必须使用的輸出格式】：\n` +
+        `需要修改/創建文件時（必须输出完整文件内容）：\n` +
+        `<<<FILE:相對於工作區的路徑>>>\n文件的完整內容（不要省略任何部分）\n<<<END>>>\n\n` +
+        `需要執行終端命令時（git、npm、等任何命令）：\n` +
+        `<<<CMD>>>\n要執行的命令\n<<<END>>>\n\n` +
+        `【示例 - git 提交代碼】：\n` +
+        `<<<CMD>>>\ngit add -A\n<<<END>>>\n` +
+        `<<<CMD>>>\ngit commit -m "feat: 你的提交信息"\n<<<END>>>\n` +
+        `<<<CMD>>>\ngit push\n<<<END>>>\n\n` +
+        `【示例 - 修改文件後提交】：\n` +
+        `<<<FILE:src/example.ts>>>\n// 完整文件內容\n<<<END>>>\n` +
+        `<<<CMD>>>\ngit add -A && git commit -m "fix: 修復問題"\n<<<END>>>\n\n` +
+        `最後輸出一段簡短中文摘要說明完成了什麼。\n\n` +
+        `當前工作區項目代碼：\n` + projectFilesContext;
 
       // 3. 调用 AI
       const aiResponse = await this.lmHandler.chat(task, history, undefined, systemPrompt);
@@ -536,10 +557,7 @@ export class CommandDispatcher {
 
       // 5. 解析 CMD 块并执行
       const terminalOutputs: Array<{ command: string; output: string; exitCode: number }> = [];
-      const cmdPattern = /<<<CMD>>>([\s\S]*?)<<<END>>>/g;
-      while ((cmdPattern.exec(aiResponse)) !== null) {
-        // re-exec with fresh regex to capture groups
-      }
+
       const cmdPattern2 = /<<<CMD>>>([\s\S]*?)<<<END>>>/g;
       let cmdMatch;
       while ((cmdMatch = cmdPattern2.exec(aiResponse)) !== null) {

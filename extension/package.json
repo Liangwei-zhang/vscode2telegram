@@ -2,7 +2,7 @@
   "name": "vscode2telegram-extension",
   "displayName": "VSCode2Telegram Bridge",
   "description": "Connect VSCode to Telegram Bot for remote control",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "publisher": "Liangwei-zhang",
   "engines": {
     "vscode": "^1.110.0"
