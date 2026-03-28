@@ -2,9 +2,17 @@
 import * as vscode from 'vscode';
 import type { ChatMessage } from './shared-types.js';
 
+// 指定模型優先級（從高到低依次嘗試）
+const MODEL_PRIORITY = [
+  'claude-sonnet-4.6',
+  'claude-sonnet-4.5',
+  'claude-sonnet-4',
+  'claude-sonnet',
+];
+
 export class LMHandler {
   private model: vscode.LanguageModelChat | null = null;
-  private selectedModelFamily: string = 'claude-sonnet-4';
+  private selectedModelFamily: string = 'claude-sonnet-4.6'; // 指定 Sonnet 4.6
   private activeCancellation: vscode.CancellationTokenSource | null = null;
 
   /**
@@ -12,7 +20,6 @@ export class LMHandler {
    */
   async getChatModels(): Promise<vscode.LanguageModelChat[]> {
     try {
-      // 獲取所有可用的 chat 模型
       const models = await vscode.lm.selectChatModels();
       return models;
     } catch (e) {
@@ -22,25 +29,43 @@ export class LMHandler {
   }
 
   /**
-   * 選擇最佳模型
+   * 選擇最佳模型：直接用 selectChatModels({ family }) 精確請求，
+   * 若找不到則按優先級列表依次降級，最後才用第一個可用模型。
    */
   async selectModel(): Promise<vscode.LanguageModelChat | null> {
+    // 1. 先嘗試精確請求指定 family（最快路徑）
+    try {
+      const exact = await vscode.lm.selectChatModels({ family: this.selectedModelFamily });
+      if (exact.length > 0) {
+        this.model = exact[0];
+        console.log('✅ 精確匹配模型:', this.model.id, '/ family:', this.model.family);
+        return this.model;
+      }
+    } catch { /* 繼續降級 */ }
+
+    // 2. 從所有可用模型中按優先級列表匹配
     const models = await this.getChatModels();
-    
     if (models.length === 0) {
       console.log('⚠️ 沒有可用的 Language Model');
       return null;
     }
 
-    // 優先選擇 claude-sonnet-4（Sonnet 4.6），其次按 selectedModelFamily 匹配
-    const preferred = models.find(m =>
-      m.family?.toLowerCase().includes(this.selectedModelFamily.toLowerCase()) ||
-      m.id?.toLowerCase().includes(this.selectedModelFamily.toLowerCase())
-    );
+    for (const priority of MODEL_PRIORITY) {
+      const found = models.find(m =>
+        m.id?.toLowerCase() === priority.toLowerCase() ||
+        m.family?.toLowerCase() === priority.toLowerCase() ||
+        m.id?.toLowerCase().includes(priority.toLowerCase())
+      );
+      if (found) {
+        this.model = found;
+        console.log('✅ 優先級匹配模型:', this.model.id, '/ family:', this.model.family);
+        return this.model;
+      }
+    }
 
-    this.model = preferred || models[0];
-    console.log('✅ 使用模型:', this.model.family || this.model.id);
-    
+    // 3. 最終降級到第一個可用
+    this.model = models[0];
+    console.log('⚠️ 降級使用模型:', this.model.id, '/ family:', this.model.family);
     return this.model;
   }
 
