@@ -4,7 +4,7 @@ import type { ChatMessage } from './shared-types.js';
 
 export class LMHandler {
   private model: vscode.LanguageModelChat | null = null;
-  private selectedModelFamily: string = 'gpt-4o';
+  private selectedModelFamily: string = 'claude-sonnet-4';
   private activeCancellation: vscode.CancellationTokenSource | null = null;
 
   /**
@@ -32,10 +32,10 @@ export class LMHandler {
       return null;
     }
 
-    // 優先選擇 Copilot GPT-4o
-    const preferred = models.find(m => 
+    // 優先選擇 claude-sonnet-4（Sonnet 4.6），其次按 selectedModelFamily 匹配
+    const preferred = models.find(m =>
       m.family?.toLowerCase().includes(this.selectedModelFamily.toLowerCase()) ||
-      m.family?.toLowerCase().includes('copilot')
+      m.id?.toLowerCase().includes(this.selectedModelFamily.toLowerCase())
     );
 
     this.model = preferred || models[0];
